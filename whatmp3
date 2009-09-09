@@ -1,0 +1,143 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename qw/basename/;
+use File::Find qw/find/;
+use File::Path qw/mkpath/;
+use File::Copy qw/copy/;
+
+##############################################################
+# whatmp3 - Convert FLAC to mp3, create what.cd torrent.
+# Created by shardz (logik.li)
+# Based on: Flac to Mp3 Perl Converter by Somnorific
+# Which was based on: Scripts by Falkano and Nick Sklaventitis
+##############################################################
+#
+### VERSION 1.1
+
+# Do you always want to move additional files (.jpg, .log, etc)? (disables the prompt)
+my $move_other = 1;
+
+# If you want a different default folder, enter it in quotes. ("/home/mlapaglia/Desktop/")
+my $default_output_folder = "";
+
+# Do you want to use FLAC tags for naming the output files? (will fail is tags aren't present)
+my $file_name_choice = 1;
+
+# Do you want track numbers (in the filenames and tags) to be 01, 02, 03, 04 instead of 1, 2, 3, 4?
+my $number_name_choice = 1;
+
+# Do you want to generate a .torrent file? (requires mktorrent 0.9.9)
+# Place passkey in quotes, and the output directory for the .torrent file in quotes ("/home/mlapaglia/Desktop/")
+my $torrent_passkey = "";
+my $torrent_output_directory = "";
+
+# List of default encoding options, add to this list if you want more
+my %lame_options = (
+	"320" => "-b 320 --ignore-tag-errors",
+	"V0"  => "-V 0 --vbr-new --ignore-tag-errors",
+	"V2"  => "-V 2 --vbr-new --ignore-tag-errors",
+);
+
+###
+# End of configuration
+###
+
+unless (@ARGV) {
+	print "Need FLAC file parameter\n";
+	print "You can specify which lame encoding (V0, 320, ...) you want with --opt\n";
+	exit 0;
+}
+
+# Store the lame options we actually want.
+my (@lame_options, @flac_dirs);
+ARG: foreach my $arg (@ARGV) {
+	foreach my $opt (keys %lame_options) {
+		if ($arg =~ m/--$opt/) {
+			push(@lame_options, $opt);
+			next ARG;
+		}
+	}
+	chop($arg) if $arg =~ m'/$';
+	push(@flac_dirs, $arg);
+}
+
+die "Need FLAC file parameter\n" unless @flac_dirs;
+
+foreach my $flac_dir (@flac_dirs) {
+	my (@files, @dirs);
+	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/) }, $flac_dir);
+	
+	print "Using $flac_dir\n";
+	
+	foreach my $lame_option (@lame_options) {
+		my $mp3_dir = $default_output_folder . basename($flac_dir) . " ($lame_option)";
+		$mp3_dir =~ s/FLAC//g;
+		mkpath($mp3_dir);
+		
+		print "\nEncoding with $lame_option started...\n";
+	
+		foreach my $file (@files) {
+			my (%tags, $mp3_filename);
+			my $mp3_dir = $mp3_dir;
+			if ($file =~ m!\Q$flac_dir\E/(.+)/.!) {
+				$mp3_dir .= '/' . $1;
+				mkpath($mp3_dir);
+			}
+	
+			foreach my $tag (qw/TITLE ALBUM ARTIST TRACKNUMBER GENRE COMMENT DATE/) {
+				($tags{$tag} = `metaflac --show-tag=$tag "$file" | awk -F = '{ printf(\$2) }'`) =~ s![:?/]!_!g;
+			}
+			
+			$tags{'TRACKNUMBER'} =~ s/^(?!0|\d{2,})/0/ if $number_name_choice;	# 0-pad tracknumbers, if desired.
+		
+			if ($file_name_choice && $tags{'TRACKNUMBER'} && $tags{'TITLE'}) {
+				$mp3_filename = $mp3_dir . '/' . $tags{'TRACKNUMBER'} . " - " . $tags{'TITLE'} . ".mp3";
+			} elsif ($file_name_choice) {
+				die "Either the files are incomplete or they are missing tags.";
+			} else {
+				$mp3_filename = $mp3_dir . '/' . basename($file) . ".mp3";
+			}
+	
+			# Build the conversion script and do the actual conversion
+			my $flac_command = "flac -dc \"$file\" | lame $lame_options{$lame_option} " .
+				'--tt "' . $tags{'TITLE'} . '" ' .
+				'--tl "' . $tags{'ALBUM'} . '" ' .
+				'--ta "' . $tags{'ARTIST'} . '" ' .
+				'--tn "' . $tags{'TRACKNUMBER'} . '" ' .
+				'--tg "' . $tags{'GENRE'} . '" ' .
+				'--ty "' . $tags{'DATE'} . '" ' .
+				'--add-id3v2 - "' . $mp3_filename . '" 2>&1';
+				print "$flac_command\n";
+				system($flac_command);
+		}
+	
+		print "\nEncoding with $lame_option finished...\n";
+	
+		# Move over any other files using rsync
+		if ($move_other) {
+			print "Moving other files... ";
+			
+			find( { wanted => sub { 
+				if ($File::Find::name !~ m/\.flac$/) {
+					if ($File::Find::name =~ m!\Q$flac_dir\E/(.+)/.!) {
+						mkpath($mp3_dir . '/' . $1);
+						copy($File::Find::name, $mp3_dir . '/' . $1);
+					} else {
+						copy($File::Find::name, $mp3_dir);
+					}
+				}
+			}, no_chdir => 1 }, $flac_dir);
+		}
+	
+		# Create .torrent file with what.cd parameters, if tags are present, if configured by user
+		if($torrent_output_directory and $torrent_passkey) {
+			print "\nCreating torrent... ";
+			my $torrent_create = "mktorrent -a http://tracker.what.cd:34000/$torrent_passkey/announce -o \"$torrent_output_directory" . basename($mp3_dir) . ".torrent\" \"$mp3_dir\"";
+			print "'$torrent_create'\n";
+			system($torrent_create);
+		}
+	}
+	print "\nAll done with $flac_dir...\n";
+}
