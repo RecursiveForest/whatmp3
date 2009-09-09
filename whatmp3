@@ -14,7 +14,7 @@ use File::Copy qw/copy/;
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 #
-### VERSION 1.1
+### VERSION 1.2
 
 # Do you always want to move additional files (.jpg, .log, etc)? (disables the prompt)
 my $move_other = 1;
@@ -134,7 +134,7 @@ foreach my $flac_dir (@flac_dirs) {
 		# Create .torrent file with what.cd parameters, if tags are present, if configured by user
 		if($torrent_output_directory and $torrent_passkey) {
 			print "\nCreating torrent... ";
-			my $torrent_create = "mktorrent -a http://tracker.what.cd:34000/$torrent_passkey/announce -o \"$torrent_output_directory" . basename($mp3_dir) . ".torrent\" \"$mp3_dir\"";
+			my $torrent_create = "mktorrent -p -a http://tracker.what.cd:34000/$torrent_passkey/announce -o \"$torrent_output_directory" . basename($mp3_dir) . ".torrent\" \"$mp3_dir\"";
 			print "'$torrent_create'\n";
 			system($torrent_create);
 		}
