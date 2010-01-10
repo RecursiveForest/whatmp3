@@ -9,7 +9,7 @@ use File::Copy qw/copy/;
 use Getopt::Long;
 Getopt::Long::Configure("permute");
 
-my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey);
+my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
 
 ##############################################################
 # whatmp3 - Convert FLAC to mp3, create what.cd torrent.
@@ -18,7 +18,7 @@ my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey);
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 
-### VERSION 2.0
+### VERSION 2.1
 
 # Do you always want to move additional files (.jpg, .log, etc)?
 $moveother = 1;
@@ -31,6 +31,9 @@ $zeropad = 1;
 
 # Specify torrent passkey
 $passkey = "";
+
+# Specify tracker ("http://tracker.what.cd:34000/")
+$tracker = "http://tracker.what.cd:34000/";
 
 # List of default encoding options, add to this list if you want more
 my %lame_options = (
@@ -60,8 +63,9 @@ sub process {
 	push(@flac_dirs, $arg);
 }
 
-GetOptions('verbose' => \$verbose, 'notorrent' => \$notorrent, 'zeropad', => \$zeropad, 'moveother' => \$moveother, 'output=s' => \$output, 'passkey=s' => \$passkey, '<>' => \&process);
+GetOptions('verbose' => \$verbose, 'notorrent' => \$notorrent, 'zeropad', => \$zeropad, 'moveother' => \$moveother, 'output=s' => \$output, 'passkey=s' => \$passkey, 'tracker=s' => \$tracker, '<>' => \&process);
 
+$output ||= "./";
 $output =~ s'/?$'/' if $output;	# Add a missing /
 
 unless (@flac_dirs) {
@@ -76,13 +80,13 @@ die "Need FLAC file parameter\n" unless @flac_dirs;
 
 foreach my $flac_dir (@flac_dirs) {
 	my (@files, @dirs);
-	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/) }, $flac_dir);
+	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/i) }, $flac_dir);
 	
 	print "Using $flac_dir\n" if $verbose;
 	
 	foreach my $lame_option (@lame_options) {
 		my $mp3_dir = $output . basename($flac_dir) . " ($lame_option)";
-		$mp3_dir =~ s/FLAC//g;
+		$mp3_dir =~ s/FLAC//ig;
 		mkpath($mp3_dir);
 		
 		print "\nEncoding with $lame_option started...\n" if $verbose;
@@ -126,7 +130,7 @@ foreach my $flac_dir (@flac_dirs) {
 			print "Moving other files... " if $verbose;
 			
 			find( { wanted => sub { 
-				if ($File::Find::name !~ m/\.flac$/) {
+				if ($File::Find::name !~ m/\.flac$/i) {
 					if ($File::Find::name =~ m!\Q$flac_dir\E/(.+)/.!) {
 						mkpath($mp3_dir . '/' . $1);
 						copy($File::Find::name, $mp3_dir . '/' . $1);
@@ -137,9 +141,9 @@ foreach my $flac_dir (@flac_dirs) {
 			}, no_chdir => 1 }, $flac_dir);
 		}
 	
-		if ($output and $passkey and not $notorrent) {
+		if ($output and $passkey and $tracker and not $notorrent) {
 			print "\nCreating torrent... " if $verbose;
-			my $torrent_create = 'mktorrent -p -a http://tracker.what.cd:34000/' . $passkey . '/announce -o "' . $output . basename($mp3_dir) . '.torrent" "' . $mp3_dir . '"';
+			my $torrent_create = 'mktorrent -p -a ' . $tracker . $passkey . '/announce -o "' . $output . basename($mp3_dir) . '.torrent" "' . $mp3_dir . '"';
 			print "'$torrent_create'\n" if $verbose;
 			system($torrent_create);
 		}
