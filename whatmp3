@@ -101,6 +101,7 @@ foreach my $flac_dir (@flac_dirs) {
 	
 			foreach my $tag (qw/TITLE ALBUM ARTIST TRACKNUMBER GENRE COMMENT DATE/) {
 				($tags{$tag} = `metaflac --show-tag=$tag "$file" | awk -F = '{ printf(\$2) }'`) =~ s![:?/]!_!g;
+				$tags{$tag} =~ s/\"/\\\"/g;
 			}
 			
 			$tags{'TRACKNUMBER'} =~ s/^(?!0|\d{2,})/0/ if $zeropad;	# 0-pad tracknumbers, if desired.
