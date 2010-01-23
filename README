@@ -8,6 +8,28 @@ Usage
 -----
 Running `whatmp3` on its own won't do too much. You need to specify the LAME flags you want to convert with, and the directories you want to convert.
 
+	--320 --V2 --V0 ...
+		encode to 320, V2, V0, or whatever else specified in 'lame_options' in the file
+	--help
+		print help message and quit
+	--verbose
+		increase verbosity (default false)
+	--moveother
+		move other files in flac directory to torrent directory (default true)
+	--output="PATH"
+		specify output directory for torrents
+	--zeropad
+		zeropad tracklists (default true)
+	--passkey="PASSKEY"
+		specify tracker passkey
+	--tracker="TRACKER"
+		specify tracker address to use (default "http://tracker.what.cd:34000")
+	--notorrent
+		do not generate a torrent file (default false)
+	
+Minimally, you need a passkey, a tracker, and an encoding option to create a 
+working torrent to upload
+
 You need to add your torrent passkey and output directory in order to make the `.torrent` file to upload to What.CD:
 
 	$passkey = "YOUR PASSKEY HERE";
@@ -23,7 +45,5 @@ This will convert `Porcupine Tree - Deadwing` and `Porcupine Tree - In Absentia`
 `.torrent` files will be created in your `output` directory.
 
 `whatmp3` also supports a few command line flags as of 2.0, use `--verbose` or `-v` to print extra messages:
-
+	
 	whatmp3 --verbose --V2 Nightingale\ -\ I
-
-Also supported are `--passkey`, `--tracker`, `--output`, `--notorrent`, `--zeropad`, and `--moveother`. These all do exactly what you think they would.

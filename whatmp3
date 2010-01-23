@@ -18,7 +18,7 @@ my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 
-### VERSION 2.1
+my $VERSION = "2.1.2";
 
 # Do you always want to move additional files (.jpg, .log, etc)?
 $moveother = 1;
@@ -46,6 +46,38 @@ my %lame_options = (
 # End of configuration
 ###
 
+sub help {
+	print<<__EOH__;
+whatmp3 version $VERSION
+
+Usage of $0:
+	--320 --V2 --V0 ...
+		encode to 320, V2, V0, or whatever else specified in 'lame_options' in the file
+	--help
+		print help message and quit
+	--verbose
+		increase verbosity (default false)
+	--moveother
+		move other files in flac directory to torrent directory (default true)
+	--output="PATH"
+		specify output directory for torrents
+	--zeropad
+		zeropad tracklists (default true)
+	--passkey="PASSKEY"
+		specify tracker passkey
+	--tracker="TRACKER"
+		specify tracker address to use (default "http://tracker.what.cd:34000")
+	--notorrent
+		do not generate a torrent file (default false)
+	
+Minimally, you need a passkey, a tracker, and an encoding option to create a 
+working torrent to upload
+
+whatmp3 depends on metaflac, lame, and mktorrent
+__EOH__
+exit;
+}
+
 my (@lame_options, @flac_dirs);
 
 ARG: foreach my $arg (@ARGV) {
@@ -63,7 +95,7 @@ sub process {
 	push(@flac_dirs, $arg);
 }
 
-GetOptions('verbose' => \$verbose, 'notorrent' => \$notorrent, 'zeropad', => \$zeropad, 'moveother' => \$moveother, 'output=s' => \$output, 'passkey=s' => \$passkey, 'tracker=s' => \$tracker, '<>' => \&process);
+GetOptions('help' => \&help, 'verbose' => \$verbose, 'notorrent' => \$notorrent, 'zeropad', => \$zeropad, 'moveother' => \$moveother, 'output=s' => \$output, 'passkey=s' => \$passkey, 'tracker=s' => \$tracker, '<>' => \&process);
 
 $output ||= "./";
 $output =~ s'/?$'/' if $output;	# Add a missing /
