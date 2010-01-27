@@ -1,15 +1,15 @@
 whatmp3 is a small script to create mp3 torrents out of FLACs.
 
-Depends on mktorrent, lame, and metalflac.
+Depends on mktorrent, lame/oggenc, and metaflac.
 
 Configuration is handled at the top of the file in the configuration section.
 
 Usage
 -----
-Running `whatmp3` on its own won't do too much. You need to specify the LAME flags you want to convert with, and the directories you want to convert.
+Running `whatmp3` on its own won't do too much. You need to specify the lame or oggenc flags you want to convert with, and the directories you want to convert.
 
-	--320 --V2 --V0 ...
-		encode to 320, V2, V0, or whatever else specified in 'lame_options' in the file
+	--320 --V2 --V0 --Q8...
+		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
 	--help
 		print help message and quit
 	--verbose
