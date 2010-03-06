@@ -18,7 +18,7 @@ my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 
-my $VERSION = "2.2";
+my $VERSION = "2.3";
 
 # Do you always want to move additional files (.jpg, .log, etc)?
 $moveother = 1;
@@ -37,10 +37,11 @@ $tracker = "http://tracker.what.cd:34000/";
 
 # List of default encoding options, add to this list if you want more
 my %enc_options = (
-	"320" => {enc => "lame", opts => "-b 320 --ignore-tag-errors"},
-	"V0"  => {enc => "lame", opts => "-V 0 --vbr-new --ignore-tag-errors"},
-	"V2"  => {enc => "lame", opts => "-V 2 --vbr-new --ignore-tag-errors"},
-	"Q8"  => {enc => "oggenc", opts => "-q 8"},
+	"320"  => {enc => "lame", opts => "-b 320 --ignore-tag-errors"},
+	"V0"   => {enc => "lame", opts => "-V 0 --vbr-new --ignore-tag-errors"},
+	"V2"   => {enc => "lame", opts => "-V 2 --vbr-new --ignore-tag-errors"},
+	"Q8"   => {enc => "oggenc", opts => "-q 8"},
++	"ALAC" => {enc => "ffmpeg", opts => "-i - -acodec alac"},
 );
 
 ###
@@ -52,7 +53,7 @@ sub help {
 whatmp3 version $VERSION
 
 Usage of $0:
-	--320 --V2 --V0 --Q8 ...
+	--320 --V2 --V0 --Q8 --ALAC ...
 		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
 	--help
 		print help message and quit
@@ -125,6 +126,7 @@ foreach my $flac_dir (@flac_dirs) {
 		print "\nEncoding with $enc_option started...\n" if $verbose;
 	
 		foreach my $file (@files) {
+			$file =~ s/\$/\\\$/g;	# fix error with bash and $'s
 			my (%tags, $mp3_filename);
 			my $mp3_dir = $mp3_dir;	# localise changes to $mp3_dir so we don't affect subsequent mp3 directories
 			if ($file =~ m!\Q$flac_dir\E/(.+)/.!) {
@@ -134,7 +136,7 @@ foreach my $flac_dir (@flac_dirs) {
 	
 			foreach my $tag (qw/TITLE ALBUM ARTIST TRACKNUMBER GENRE COMMENT DATE/) {
 				($tags{$tag} = `metaflac --show-tag=$tag "$file" | awk -F = '{ printf(\$2) }'`) =~ s![:?/]!_!g;
-				$tags{$tag} =~ s/\"/\\\"/g;
+				$tags{$tag} =~ s/\"/\\\"/g;	# fix error with escaping "'s
 			}
 			
 			$tags{'TRACKNUMBER'} =~ s/^(?!0|\d{2,})/0/ if $zeropad;	# 0-pad tracknumbers, if desired.
@@ -167,7 +169,17 @@ foreach my $flac_dir (@flac_dirs) {
 					'-G "' . $tags{'GENRE'} . '" ' .
 					'-d "' . $tags{'DATE'} . '" ' .
 					'-o "' . $mp3_filename . '.ogg" - 2>&1';
+			} elsif ($enc_options{$enc_option}->{'enc'} eq 'ffmpeg') {
+				$flac_command = "flac -dc \"$file\" | ffmpeg " . $enc_options{$enc_option}->{'opts'} . ' ' .
+					'-metadata title="' . $tags{'TITLE'} . '" ' .
+					'-metadata album="' . $tags{'ALBUM'} . '" ' .
+					'-metadata author="' . $tags{'ARTIST'} . '" ' .
+					'-metadata track="' . $tags{'TRACKNUMBER'} . '" ' .
+					'-metadata genre="' . $tags{'GENRE'} . '" ' .
+					'-metadata date="' . $tags{'DATE'} . '"  "' .
+					$mp3_filename . '.m4a" 2>&1';
 			}
+			$flac_command =~ s/\$/\\\$/g;	# fix error with bash and $'s
 			print "$flac_command\n" if $verbose;
 			system($flac_command);
 		}
