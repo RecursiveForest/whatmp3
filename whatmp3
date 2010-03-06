@@ -41,7 +41,7 @@ my %enc_options = (
 	"V0"   => {enc => "lame", opts => "-V 0 --vbr-new --ignore-tag-errors"},
 	"V2"   => {enc => "lame", opts => "-V 2 --vbr-new --ignore-tag-errors"},
 	"Q8"   => {enc => "oggenc", opts => "-q 8"},
-+	"ALAC" => {enc => "ffmpeg", opts => "-i - -acodec alac"},
+	"ALAC" => {enc => "ffmpeg", opts => "-i - -acodec alac"},
 );
 
 ###
