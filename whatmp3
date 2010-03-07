@@ -196,8 +196,6 @@ foreach my $flac_dir (@flac_dirs) {
 			my $base_mp3_dir = basename($mp3_dir);
 			find( { wanted => sub { 
 				if ($File::Find::name !~ m/\.flac$/i and $File::Find::name !~ m!\Q$base_mp3_dir\E!) {
-					print $File::Find::name . "\n";
-					print "----> " . basename($mp3_dir) . " --> $base_mp3_dir\n";
 					if ($File::Find::name =~ m!\Q$flac_dir\E/(.+)/.!) {
 						mkpath($mp3_dir . '/' . $1);
 						copy($File::Find::name, $mp3_dir . '/' . $1);
