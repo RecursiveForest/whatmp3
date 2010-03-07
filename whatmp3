@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use Cwd;
 use File::Basename qw/basename/;
 use File::Find qw/find/;
 use File::Path qw/mkpath/;
@@ -18,7 +19,7 @@ my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 
-my $VERSION = "2.3";
+my $VERSION = "2.3.1";
 
 # Do you always want to move additional files (.jpg, .log, etc)?
 $moveother = 1;
@@ -114,6 +115,9 @@ die "Need FLAC file parameter\n" unless @flac_dirs;
 
 foreach my $flac_dir (@flac_dirs) {
 	my (@files, @dirs);
+	if ($flac_dir eq '.' or './') {
+		$flac_dir = cwd;
+	}
 	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/i) }, $flac_dir);
 	
 	print "Using $flac_dir\n" if $verbose;
@@ -188,9 +192,12 @@ foreach my $flac_dir (@flac_dirs) {
 	
 		if ($moveother) {
 			print "Moving other files... " if $verbose;
-			
+		
+			my $base_mp3_dir = basename($mp3_dir);
 			find( { wanted => sub { 
-				if ($File::Find::name !~ m/\.flac$/i) {
+				if ($File::Find::name !~ m/\.flac$/i and $File::Find::name !~ m!\Q$base_mp3_dir\E!) {
+					print $File::Find::name . "\n";
+					print "----> " . basename($mp3_dir) . " --> $base_mp3_dir\n";
 					if ($File::Find::name =~ m!\Q$flac_dir\E/(.+)/.!) {
 						mkpath($mp3_dir . '/' . $1);
 						copy($File::Find::name, $mp3_dir . '/' . $1);
