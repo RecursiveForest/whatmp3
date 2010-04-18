@@ -115,7 +115,7 @@ die "Need FLAC file parameter\n" unless @flac_dirs;
 
 foreach my $flac_dir (@flac_dirs) {
 	my (@files, @dirs);
-	if ($flac_dir eq '.' or './') {
+	if ($flac_dir eq '.' or $flac_dir eq './') {
 		$flac_dir = cwd;
 	}
 	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/i) }, $flac_dir);
