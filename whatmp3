@@ -19,7 +19,7 @@ my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
 # Which was based on: Scripts by Falkano and Nick Sklaventitis
 ##############################################################
 
-my $VERSION = "2.3.1";
+my $VERSION = "2.3.2";
 
 # Do you always want to move additional files (.jpg, .log, etc)?
 $moveother = 1;
