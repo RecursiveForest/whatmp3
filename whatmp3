@@ -172,12 +172,14 @@ def main():
 			if options.replaygain:
 				if options.verbose: print('Applying replay gain...')
 
-				if enc_options[codec]['enc'] == 'lame':
-					os.system(escape('mp3gain -q -c -s i "' + mp3_dir + '"/*.mp3'))
-				if enc_options[codec]['enc'] == 'oggenc':
-					os.system(escape('vorbisgain -qafrs "' + mp3_dir + '"/*.ogg'))
-				if enc_options[codec]['enc'] == 'neroAacEnc':
-					os.system(escape('aacgain -q -c "' + mp3_dir + '"/*.m4a'))
+				for dirpath, dirs, files in os.walk(mp3_dir, topdown=False):
+					for name in dirs:
+						if enc_options[codec]['enc'] == 'lame':
+							os.system(escape('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
+						if enc_options[codec]['enc'] == 'oggenc':
+							os.system(escape('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
+						if enc_options[codec]['enc'] == 'neroAacEnc':
+							os.system(escape('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				if options.verbose: print('Creating torrent...')
