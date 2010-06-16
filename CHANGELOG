@@ -1,0 +1,7 @@
+# 3.0
+
+- Fix bug with '`' characters in filenames
+- Add threading support
+- Add AAC support through neroAacEnc and neroAacTag
+- Switch to Python
+- Add replaygain support

@@ -1,217 +1,192 @@
-#!/usr/bin/perl
-
-use strict;
-use warnings;
-use Cwd;
-use File::Basename qw/basename/;
-use File::Find qw/find/;
-use File::Path qw/mkpath/;
-use File::Copy qw/copy/;
-use Getopt::Long;
-Getopt::Long::Configure("permute");
-
-my ($verbose, $notorrent, $zeropad, $moveother, $output, $passkey, $tracker);
+#!/usr/bin/env python
 
 ##############################################################
 # whatmp3 - Convert FLAC to mp3, create what.cd torrent.
-# Created by shardz (logik.li)
-# Based on: Flac to Mp3 Perl Converter by Somnorific
-# Which was based on: Scripts by Falkano and Nick Sklaventitis
+# Created by shardz (logik.li) and demonstar55
 ##############################################################
 
-my $VERSION = "2.3.2";
+import os
+import re
+import fnmatch
+import shutil
+from optparse import OptionParser
+import threading
 
-# Do you always want to move additional files (.jpg, .log, etc)?
-$moveother = 1;
+VERSION = "3.0"
 
-# Output folder unless specified: ("/home/samuel/Desktop/")
-$output = "";
+### BEGIN CONFIGURATION ###
 
-# Do you want to zeropad tracknumber values? (1 => 01, 2 => 02 ...)
-$zeropad = 1;
+# Output folder unless specified: ("/home/user/Desktop/")
+output = "/home/samuel/Desktop/"
 
-# Specify torrent passkey
-$passkey = "";
+# Do you want to move additional files (.jpg, .log, etc)?
+moveother = 1
+
+# Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
+zeropad = 1
 
 # Specify tracker ("http://tracker.what.cd:34000/")
-$tracker = "http://tracker.what.cd:34000/";
+tracker = "http://tracker.what.cd:34000/"
 
-# List of default encoding options, add to this list if you want more
-my %enc_options = (
-	"320"  => {enc => "lame", opts => "-b 320 --ignore-tag-errors"},
-	"V0"   => {enc => "lame", opts => "-V 0 --vbr-new --ignore-tag-errors"},
-	"V2"   => {enc => "lame", opts => "-V 2 --vbr-new --ignore-tag-errors"},
-	"Q8"   => {enc => "oggenc", opts => "-q 8"},
-	"ALAC" => {enc => "ffmpeg", opts => "-i - -acodec alac"},
-);
+# Specify torrent passkey
+passkey = ""
 
-###
-# End of configuration
-###
+# Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
+max_threads = 1
 
-sub help {
-	print<<__EOH__;
-whatmp3 version $VERSION
-
-Usage of $0:
-	--320 --V2 --V0 --Q8 --ALAC ...
-		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
-	--help
-		print help message and quit
-	--verbose
-		increase verbosity (default false)
-	--moveother
-		move other files in flac directory to torrent directory (default true)
-	--output="PATH"
-		specify output directory for torrents
-	--zeropad
-		zeropad tracklists (default true)
-	--passkey="PASSKEY"
-		specify tracker passkey
-	--tracker="TRACKER"
-		specify tracker address to use (default "http://tracker.what.cd:34000")
-	--notorrent
-		do not generate a torrent file (default false)
-	
-Minimally, you need a passkey, a tracker, and an encoding option to create a 
-working torrent to upload.
-
-whatmp3 depends on metaflac, lame/oggenc, and mktorrent.
-__EOH__
-exit;
+# Default encoding options
+enc_options = {
+	'320':	{'enc': 'lame',		'opts': '-b 320 --ignore-tag-errors'},
+	'V0':	{'enc': 'lame',		'opts': '-V 0 --vbr-new --ignore-tag-errors'},
+	'V2':	{'enc': 'lame',		'opts': '-V 2 --vbr-new --ignore-tag-errors'},
+	'Q8':	{'enc': 'oggenc',	'opts': '-q 8'},
+	'AAC':	{'enc': 'neroAacEnc',	'opts': '-br 320000'},
+	'ALAC':	{'enc': 'ffmpeg',	'opts': '-i - -acodec alac'}
 }
 
-my (@enc_options, @flac_dirs);
+### END CONFIGURATION ###
 
-ARG: foreach my $arg (@ARGV) {
-	foreach my $opt (keys %enc_options) {
-		if ($arg =~ m/\Q$opt/i) {
-			push(@enc_options, $opt);
-			next ARG;
-		}
-	}
-}
+codecs = []
 
-sub process {
-	my $arg = shift @_;
-	chop($arg) if $arg =~ m'/$';
-	push(@flac_dirs, $arg);
-}
+# os.system() and os.popen() have issues with `
+def escape(pattern):
+	pattern = re.sub('`', '\`', pattern)
+	return pattern
 
-GetOptions('help' => \&help, 'verbose' => \$verbose, 'notorrent' => \$notorrent, 'zeropad', => \$zeropad, 'moveother' => \$moveother, 'output=s' => \$output, 'passkey=s' => \$passkey, 'tracker=s' => \$tracker, '<>' => \&process);
+class Transcode(threading.Thread):
+	def __init__(self, file, flacdir, mp3_dir, codec, options):
+		threading.Thread.__init__(self)
+		self.file = file
+		self.flacdir = flacdir
+		self.mp3_dir = mp3_dir
+		self.codec = codec
+		self.options = options
 
-$output ||= "./";
-$output =~ s'/?$'/' if $output;	# Add a missing /
+	def run(self):
+		tags = {}
+		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
+			tagcommand = 'metaflac --show-tag=' + tag + ' "' + self.file + '"'
+			temp = re.sub('\S.*=', '', os.popen(escape(tagcommand)).read().rstrip())
+			tags.update({tag:temp})
+			del temp
 
-unless (@flac_dirs) {
-	print "Need FLAC file parameter\n";
-	print "You can specify which lame encoding (V0, 320, ...) you want with --opt\n";
-	exit 0;
-}
+		if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
+			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
 
-# Store the lame options we actually want.
+		mp3_filename = re.sub(re.escape(self.flacdir), self.mp3_dir, self.file)
+		mp3_filename = re.sub('\.flac$', '', mp3_filename)
+		if not os.path.exists(os.path.dirname(mp3_filename)):
+			os.makedirs(os.path.dirname(mp3_filename))
 
-die "Need FLAC file parameter\n" unless @flac_dirs;
+		flac_command = 'flac -dc -- "' + self.file + '" | '
+		tag_command = ''
 
-foreach my $flac_dir (@flac_dirs) {
-	my (@files, @dirs);
-	if ($flac_dir eq '.' or $flac_dir eq './') {
-		$flac_dir = cwd;
-	}
-	find( sub { push(@files, $File::Find::name) if ($File::Find::name =~ m/\.flac$/i) }, $flac_dir);
-	
-	print "Using $flac_dir\n" if $verbose;
-	
-	foreach my $enc_option (@enc_options) {
-		my $mp3_dir = $output . basename($flac_dir) . " ($enc_option)";
-		$mp3_dir =~ s/FLAC//ig;
-		mkpath($mp3_dir);
-		
-		print "\nEncoding with $enc_option started...\n" if $verbose;
-	
-		foreach my $file (@files) {
-			$file =~ s/\$/\\\$/g;	# fix error with bash and $'s
-			my (%tags, $mp3_filename);
-			my $mp3_dir = $mp3_dir;	# localise changes to $mp3_dir so we don't affect subsequent mp3 directories
-			if ($file =~ m!\Q$flac_dir\E/(.+)/.!) {
-				$mp3_dir .= '/' . $1;
-				mkpath($mp3_dir);
-			}
-	
-			foreach my $tag (qw/TITLE ALBUM ARTIST TRACKNUMBER GENRE COMMENT DATE/) {
-				($tags{$tag} = `metaflac --show-tag=$tag "$file" | awk -F = '{ printf(\$2) }'`) =~ s![:?/]!_!g;
-				$tags{$tag} =~ s/\"/\\\"/g;	# fix error with escaping "'s
-			}
-			
-			$tags{'TRACKNUMBER'} =~ s/^(?!0|\d{2,})/0/ if $zeropad;	# 0-pad tracknumbers, if desired.
-	
-			if ($tags{'TRACKNUMBER'} and $tags{'TITLE'}) {
-				$mp3_filename = $mp3_dir . '/' . $tags{'TRACKNUMBER'} . " - " . $tags{'TITLE'};
-			} else {
-				my $basename = basename($file);
-				$basename =~ s/\.[^.]+$//;
-				$mp3_filename = $mp3_dir . '/' . $basename;
-			}
-	
-			# Build the conversion script and do the actual conversion
-			my $flac_command;
-			if ($enc_options{$enc_option}->{'enc'} eq 'lame') {
-				$flac_command = "flac -dc \"$file\" | lame " . $enc_options{$enc_option}->{'opts'} . ' ' .
-					'--tt "' . $tags{'TITLE'} . '" ' .
-					'--tl "' . $tags{'ALBUM'} . '" ' .
-					'--ta "' . $tags{'ARTIST'} . '" ' .
-					'--tn "' . $tags{'TRACKNUMBER'} . '" ' .
-					'--tg "' . $tags{'GENRE'} . '" ' .
-					'--ty "' . $tags{'DATE'} . '" ' .
-					'--add-id3v2 - "' . $mp3_filename . '.mp3" 2>&1';
-			} elsif ($enc_options{$enc_option}->{'enc'} eq 'oggenc') {
-				$flac_command = "flac -dc \"$file\" | oggenc " . $enc_options{$enc_option}->{'opts'} . ' ' .
-					'-t "' . $tags{'TITLE'} . '" ' .
-					'-l "' . $tags{'ALBUM'} . '" ' .
-					'-a "' . $tags{'ARTIST'} . '" ' .
-					'-N "' . $tags{'TRACKNUMBER'} . '" ' .
-					'-G "' . $tags{'GENRE'} . '" ' .
-					'-d "' . $tags{'DATE'} . '" ' .
-					'-o "' . $mp3_filename . '.ogg" - 2>&1';
-			} elsif ($enc_options{$enc_option}->{'enc'} eq 'ffmpeg') {
-				$flac_command = "flac -dc \"$file\" | ffmpeg " . $enc_options{$enc_option}->{'opts'} . ' ' .
-					'-metadata title="' . $tags{'TITLE'} . '" ' .
-					'-metadata album="' . $tags{'ALBUM'} . '" ' .
-					'-metadata author="' . $tags{'ARTIST'} . '" ' .
-					'-metadata track="' . $tags{'TRACKNUMBER'} . '" ' .
-					'-metadata genre="' . $tags{'GENRE'} . '" ' .
-					'-metadata date="' . $tags{'DATE'} . '"  "' .
-					$mp3_filename . '.m4a" 2>&1';
-			}
-			$flac_command =~ s/\$/\\\$/g;	# fix error with bash and $'s
-			print "$flac_command\n" if $verbose;
-			system($flac_command);
-		}
-	
-		print "\nEncoding with $enc_option finished...\n";
-	
-		if ($moveother) {
-			print "Moving other files... " if $verbose;
-		
-			my $base_mp3_dir = basename($mp3_dir);
-			find( { wanted => sub { 
-				if ($File::Find::name !~ m/\.flac$/i and $File::Find::name !~ m!\Q$base_mp3_dir\E!) {
-					if ($File::Find::name =~ m!\Q$flac_dir\E/(.+)/.!) {
-						mkpath($mp3_dir . '/' . $1);
-						copy($File::Find::name, $mp3_dir . '/' . $1);
-					} else {
-						copy($File::Find::name, $mp3_dir);
-					}
-				}
-			}, no_chdir => 1 }, $flac_dir);
-		}
-	
-		if ($output and $passkey and $tracker and not $notorrent) {
-			print "\nCreating torrent... " if $verbose;
-			my $torrent_create = 'mktorrent -p -a ' . $tracker . $passkey . '/announce -o "' . $output . basename($mp3_dir) . '.torrent" "' . $mp3_dir . '"';
-			print "'$torrent_create'\n" if $verbose;
-			system($torrent_create);
-		}
-	}
-	print "\nAll done with $flac_dir...\n" if $verbose;
-}
+		if enc_options[self.codec]['enc'] == 'lame':
+			flac_command = flac_command + 'lame -S {0} --tt "{t[TITLE]}" --tl "{t[ALBUM]}" --ta "{t[ARTIST]}" --tn "{t[TRACKNUMBER]}" --tg "{t[GENRE]}" --ty "{t[DATE]}" --add-id3v2 - "{1}.mp3" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+		elif enc_options[self.codec]['enc'] == 'oggenc':
+			flac_command = flac_command + 'oggenc -Q {0} -t "{t[TITLE]}" -l "{t[ALBUM]}" -a "{t[ARTIST]}" -N "{t[TRACKNUMBER]}" -G "{t[GENRE]}" -d "{t[DATE]}" -o "{1}.ogg" - 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+		elif enc_options[self.codec]['enc'] == 'ffmpeg':
+			flac_command = flac_command + 'ffmpeg {0} -metadata title="{t[TITLE]}" -metadata album="{t[ALBUM]}" -metadata author="{t[ARTIST]}" -metadata track="{t[TRACKNUMBER]}" -metadata genre="{t[GENRE]}" -metadata date="{t[DATE]}" -o "{1}.m4a" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
+			flac_command = flac_command + 'neroAacEnc {0} -if - -of "{1}.m4a" 2>&1 && neroAacTag {1}.m4a -meta:title="{t[TITLE]}" -meta:album="{t[ALBUM]}" -meta:artist="{t[ARTIST]}" -meta:track="{t[TRACKNUMBER]}" -meta:genre="{t[GENRE]}" -meta:year="{t[DATE]}"'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+
+		if self.options.verbose:
+			print(escape(flac_command))
+		os.system(escape(flac_command))
+
+		return 0
+
+def add_enc_option(option, opt, value, parser):
+	codecs.append(opt[2:])
+
+def main():
+# Parse options and arguments
+	usage_text = "%prog [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC"
+	info_text = "Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, and vorbisgain."
+	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
+	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
+	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
+	parser.add_option('-m', '--moveother',	action='store_false',	dest='moveother',	default=True,	help='move additional files (Default: True)')
+	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
+	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
+	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
+	parser.add_option('-z', '--zeropad',	action='store_false',	dest='zeropad',		default=True,	help='zeropad track numbers (Default: True)')
+	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
+	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
+
+	for enc_opt in enc_options.keys():
+		parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option)
+
+	(options, flacdirs) = parser.parse_args()
+
+	if len(flacdirs) < 1:
+		parser.error("Incorrect number of arguments")
+
+	if not options.output.endswith('/'):
+		options.output += '/'
+
+	if len(codecs) == 0:
+		print('You need to provide at least one format to transcode to (320, V0, Q8 ...)')
+		exit()
+
+	for flacdir in flacdirs:
+		flacdir = os.path.abspath(flacdir)
+		flacfiles = []
+
+		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
+			for name in files:
+				if fnmatch.fnmatch(name, '*.flac'):
+					flacfiles.append(os.path.join(dirpath, name))
+
+		for codec in codecs:
+			mp3_dir = options.output + os.path.basename(flacdir) + " (" + codec + ")"
+			mp3_dir = re.sub('FLAC', '', mp3_dir)
+			if not os.path.exists(mp3_dir):
+				os.makedirs(mp3_dir)
+
+			print('Encoding with ' + codec + ' started...')
+
+			threads = []
+			for file in flacfiles:
+				t=Transcode(file, flacdir, mp3_dir, codec, options)
+				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
+					pass
+				t.start()
+				threads.append(t)
+
+			for t in threads:
+				t.join()
+
+			print('\nEncoding with ' + codec + ' finished.')
+
+			if options.moveother:
+				if options.verbose: print('Moving other files...')
+				for dirpath, dirs, files in os.walk(flacdir, topdown=False):
+					for name in files:
+						if not fnmatch.fnmatch(file, '*.flac'):
+							d = re.sub(re.escape(flacdir), mp3_dir, dirpath)
+							if not os.path.exists(d):
+								os.makedirs(d)
+							shutil.copy(os.path.join(dirpath, file), d)
+
+			if options.replaygain:
+				if options.verbose: print('Applying replay gain...')
+
+				if enc_options[codec]['enc'] == 'lame':
+					os.system(escape('mp3gain -q -c -s i "' + mp3_dir + '"/*.mp3'))
+				if enc_options[codec]['enc'] == 'oggenc':
+					os.system(escape('vorbisgain -qafrs "' + mp3_dir + '"/*.ogg'))
+				if enc_options[codec]['enc'] == 'neroAacEnc':
+					os.system(escape('aacgain -q -c "' + mp3_dir + '"/*.m4a'))
+
+			if options.output and options.passkey and options.tracker and not options.notorrent:
+				if options.verbose: print('Creating torrent...')
+				torrent_command = 'mktorrent -p -a {0}/announce -o "{1}.torrent" "{2}"'.format(options.tracker + options.passkey, escape(options.output + os.path.basename(mp3_dir)), escape(mp3_dir))
+				if options.verbose: print(escape(torrent_command))
+				os.system(escape(torrent_command))
+
+		if options.verbose: print('All done with ' + flacdir + ' ...')
+	return 0
+
+if __name__ == '__main__':
+	main()
