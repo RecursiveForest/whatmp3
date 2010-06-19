@@ -106,11 +106,11 @@ def main():
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
 	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
 	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
-	parser.add_option('-m', '--moveother',	action='store_false',	dest='moveother',	default=True,	help='move additional files (Default: True)')
+	parser.add_option('-m', '--moveother',	action='store_true',	dest='moveother',	default=True,	help='move additional files (Default: True)')
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
 	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
 	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
-	parser.add_option('-z', '--zeropad',	action='store_false',	dest='zeropad',		default=True,	help='zeropad track numbers (Default: True)')
+	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',		default=True,	help='zeropad track numbers (Default: True)')
 	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
 	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
 
@@ -163,11 +163,11 @@ def main():
 				if options.verbose: print('Moving other files...')
 				for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 					for name in files:
-						if not fnmatch.fnmatch(file, '*.flac'):
+						if not fnmatch.fnmatch(name, '*.flac'):
 							d = re.sub(re.escape(flacdir), mp3_dir, dirpath)
 							if not os.path.exists(d):
 								os.makedirs(d)
-							shutil.copy(os.path.join(dirpath, file), d)
+							shutil.copy(os.path.join(dirpath, name), d)
 
 			if options.replaygain:
 				if options.verbose: print('Applying replay gain...')
