@@ -1,3 +1,8 @@
+# 3.1
+- Fix torrent creation bug
+- Fix moveother bugs
+- Add --FLAC support
+
 # 3.0
 
 - Fix bug with '`' characters in filenames

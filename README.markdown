@@ -10,6 +10,8 @@ Running `whatmp3` on its own won't do too much. You need to specify the lame or 
 
 	--320 --V2 --V0 --Q8 --ALAC...
 		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
+	--FLAC
+		create torrent for FLAC
 	--help
 		print help message and quit
 	--verbose

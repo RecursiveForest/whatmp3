@@ -12,7 +12,7 @@ import shutil
 from optparse import OptionParser
 import threading
 
-VERSION = "3.0"
+VERSION = "3.1"
 
 ### BEGIN CONFIGURATION ###
 
