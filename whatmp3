@@ -86,7 +86,7 @@ class Transcode(threading.Thread):
 		elif enc_options[self.codec]['enc'] == 'oggenc':
 			flac_command = flac_command + 'oggenc -Q {0} -t "{t[TITLE]}" -l "{t[ALBUM]}" -a "{t[ARTIST]}" -N "{t[TRACKNUMBER]}" -G "{t[GENRE]}" -d "{t[DATE]}" -o "{1}.ogg" - 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
 		elif enc_options[self.codec]['enc'] == 'ffmpeg':
-			flac_command = flac_command + 'ffmpeg {0} -metadata title="{t[TITLE]}" -metadata album="{t[ALBUM]}" -metadata author="{t[ARTIST]}" -metadata track="{t[TRACKNUMBER]}" -metadata genre="{t[GENRE]}" -metadata date="{t[DATE]}" -o "{1}.m4a" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+			flac_command = flac_command + 'ffmpeg {0} -metadata title="{t[TITLE]}" -metadata album="{t[ALBUM]}" -metadata author="{t[ARTIST]}" -metadata track="{t[TRACKNUMBER]}" -metadata genre="{t[GENRE]}" -metadata date="{t[DATE]}" "{1}.m4a" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
 		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
 			flac_command = flac_command + 'neroAacEnc {0} -if - -of "{1}.m4a" 2>&1 && neroAacTag {1}.m4a -meta:title="{t[TITLE]}" -meta:album="{t[ALBUM]}" -meta:artist="{t[ARTIST]}" -meta:track="{t[TRACKNUMBER]}" -meta:genre="{t[GENRE]}" -meta:year="{t[DATE]}"'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
 
