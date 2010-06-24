@@ -17,7 +17,7 @@ VERSION = "3.1"
 ### BEGIN CONFIGURATION ###
 
 # Output folder unless specified: ("/home/user/Desktop/")
-output = "/home/samuel/Desktop/"
+output = os.path.join(os.environ['HOME'], "Desktop/")
 
 # Do you want to move additional files (.jpg, .log, etc)?
 moveother = 1
