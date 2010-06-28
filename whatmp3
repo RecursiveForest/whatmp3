@@ -54,13 +54,14 @@ def escape(pattern):
 	return pattern
 
 class Transcode(threading.Thread):
-	def __init__(self, file, flacdir, mp3_dir, codec, options):
+	def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
 		threading.Thread.__init__(self)
 		self.file = file
 		self.flacdir = flacdir
 		self.mp3_dir = mp3_dir
 		self.codec = codec
 		self.options = options
+		self.cv = cv
 
 	def run(self):
 		tags = {}
@@ -93,6 +94,10 @@ class Transcode(threading.Thread):
 		if self.options.verbose:
 			print(escape(flac_command))
 		os.system(escape(flac_command))
+
+		self.cv.acquire()
+		self.cv.notify_all()
+		self.cv.release()
 
 		return 0
 
@@ -160,10 +165,13 @@ def main():
 			print('Encoding with ' + codec + ' started...')
 
 			threads = []
+			cv = threading.Condition()
 			for file in flacfiles:
-				t=Transcode(file, flacdir, mp3_dir, codec, options)
+				cv.acquire()
 				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
-					pass
+					cv.wait()
+				cv.release()
+				t=Transcode(file, flacdir, mp3_dir, codec, options, cv)
 				t.start()
 				threads.append(t)
 
