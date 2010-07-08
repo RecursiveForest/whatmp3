@@ -2,6 +2,7 @@
 - Fix ffmpeg command (no '-o')
 - Use os.environ['HOME'] instead of /home/user
 - Improve threading
+- Fix AAC tagging output (add quotes)
 
 # 3.1
 - Fix torrent creation bug
