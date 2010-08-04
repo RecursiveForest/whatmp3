@@ -12,7 +12,7 @@ import shutil
 from optparse import OptionParser
 import threading
 
-VERSION = "3.2.1"
+VERSION = "3.3"
 
 ### BEGIN CONFIGURATION ###
 
@@ -79,17 +79,21 @@ class Transcode(threading.Thread):
 		if not os.path.exists(os.path.dirname(mp3_filename)):
 			os.makedirs(os.path.dirname(mp3_filename))
 
-		flac_command = 'flac -dc -- "' + self.file + '" | '
-		tag_command = ''
+		flac_command = ''
 
 		if enc_options[self.codec]['enc'] == 'lame':
-			flac_command = flac_command + 'lame -S {0} --tt "{t[TITLE]}" --tl "{t[ALBUM]}" --ta "{t[ARTIST]}" --tn "{t[TRACKNUMBER]}" --tg "{t[GENRE]}" --ty "{t[DATE]}" --add-id3v2 - "{1}.mp3" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+			flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --tg "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
 		elif enc_options[self.codec]['enc'] == 'oggenc':
-			flac_command = flac_command + 'oggenc -Q {0} -t "{t[TITLE]}" -l "{t[ALBUM]}" -a "{t[ARTIST]}" -N "{t[TRACKNUMBER]}" -G "{t[GENRE]}" -d "{t[DATE]}" -o "{1}.ogg" - 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+			flac_command = 'oggenc -Q %s -t "%s" -l "%s" -a "%s" -N "%s" -G "%s" -d "%s" -o "%s.ogg" - 2>&1'
 		elif enc_options[self.codec]['enc'] == 'ffmpeg':
-			flac_command = flac_command + 'ffmpeg {0} -metadata title="{t[TITLE]}" -metadata album="{t[ALBUM]}" -metadata author="{t[ARTIST]}" -metadata track="{t[TRACKNUMBER]}" -metadata genre="{t[GENRE]}" -metadata date="{t[DATE]}" "{1}.m4a" 2>&1'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+			flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
 		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
-			flac_command = flac_command + 'neroAacEnc {0} -if - -of "{1}.m4a" 2>&1 && neroAacTag "{1}.m4a" -meta:title="{t[TITLE]}" -meta:album="{t[ALBUM]}" -meta:artist="{t[ARTIST]}" -meta:track="{t[TRACKNUMBER]}" -meta:genre="{t[GENRE]}" -meta:year="{t[DATE]}"'.format(enc_options[self.codec]['opts'], mp3_filename, t=tags)
+			flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
+
+		if enc_options[self.codec]['enc'] == 'neroAacEnc':
+			flac_command = 'flac -dc -- "' + self.file + '" | ' + flac_command % (enc_options[self.codec]['opts'], mp3_filename, mp3_filename, tags['TITLE'], tags['ALBUM'], tags['ARTIST'], tags['TRACKNUMBER'], tags['GENRE'], tags['DATE'])
+		else:
+			flac_command = 'flac -dc -- "' + self.file + '" | ' + flac_command % (enc_options[self.codec]['opts'], tags['TITLE'], tags['ALBUM'], tags['ARTIST'], tags['TRACKNUMBER'], tags['GENRE'], tags['DATE'], mp3_filename)
 
 		if self.options.verbose:
 			print(escape(flac_command))
@@ -105,7 +109,7 @@ def add_enc_option(option, opt, value, parser):
 	codecs.append(opt[2:])
 
 def main():
-# Parse options and arguments
+	# Parse options and arguments
 	usage_text = "%prog [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC"
 	info_text = "Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, and vorbisgain."
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
@@ -150,7 +154,7 @@ def main():
 
 				if options.output and options.passkey and options.tracker and not options.notorrent:
 					if options.verbose: print('Creating torrent...')
-					torrent_command = 'mktorrent -p -a {0}/announce -o "{1}.torrent" "{2}"'.format(options.tracker + options.passkey, escape(options.output + os.path.basename(flacdir)), flacdir)
+					torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.output + os.path.basename(flacdir)), flacdir)
 					if options.verbose: print(escape(torrent_command))
 					os.system(escape(torrent_command))
 
@@ -204,7 +208,7 @@ def main():
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				if options.verbose: print('Creating torrent...')
-				torrent_command = 'mktorrent -p -a {0}/announce -o "{1}.torrent" "{2}"'.format(options.tracker + options.passkey, escape(options.output + os.path.basename(mp3_dir)), mp3_dir)
+				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.output + os.path.basename(mp3_dir)), mp3_dir)
 				if options.verbose: print(escape(torrent_command))
 				os.system(escape(torrent_command))
 
