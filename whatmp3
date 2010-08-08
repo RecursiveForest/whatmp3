@@ -161,8 +161,12 @@ def main():
 				print('Finished working with FLAC')
 				continue
 
-			mp3_dir = options.output + os.path.basename(flacdir) + " (" + codec + ")"
-			mp3_dir = re.sub(re.compile('FLAC', re.I), '', mp3_dir)
+			mp3_dir = options.output + os.path.basename(flacdir)
+			if 'FLAC' in flacdir:
+				mp3_dir = re.sub(re.compile('FLAC', re.I), codec, mp3_dir)
+			else:
+				mp3_dir = mp3_dir + " (" + codec + ")"
+				mp3_dir = re.sub(re.compile('FLAC', re.I), '', mp3_dir)
 			if not os.path.exists(mp3_dir):
 				os.makedirs(mp3_dir)
 
