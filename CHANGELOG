@@ -2,6 +2,7 @@
 - Fix and improve FLAC string removal
 - Python 2.5 compatibility
 - Restructure flac_command creation
+- Fix quote bug
 
 # 3.2
 - Fix ffmpeg command (no '-o')

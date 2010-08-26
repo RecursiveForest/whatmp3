@@ -53,6 +53,10 @@ def escape(pattern):
 	pattern = re.sub('`', '\`', pattern)
 	return pattern
 
+def esc(pattern):
+	pattern = re.sub('"', '\\"', pattern)
+	return pattern
+
 class Transcode(threading.Thread):
 	def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
 		threading.Thread.__init__(self)
@@ -66,7 +70,7 @@ class Transcode(threading.Thread):
 	def run(self):
 		tags = {}
 		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
-			tagcommand = 'metaflac --show-tag=' + tag + ' "' + self.file + '"'
+			tagcommand = 'metaflac --show-tag=' + esc(tag) + ' "' + esc(self.file) + '"'
 			temp = re.sub('\S.*=', '', os.popen(escape(tagcommand)).read().rstrip())
 			tags.update({tag:temp})
 			del temp
@@ -91,9 +95,9 @@ class Transcode(threading.Thread):
 			flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
 
 		if enc_options[self.codec]['enc'] == 'neroAacEnc':
-			flac_command = 'flac -dc -- "' + self.file + '" | ' + flac_command % (enc_options[self.codec]['opts'], mp3_filename, mp3_filename, tags['TITLE'], tags['ALBUM'], tags['ARTIST'], tags['TRACKNUMBER'], tags['GENRE'], tags['DATE'])
+			flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(mp3_filename), esc(mp3_filename), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']))
 		else:
-			flac_command = 'flac -dc -- "' + self.file + '" | ' + flac_command % (enc_options[self.codec]['opts'], tags['TITLE'], tags['ALBUM'], tags['ARTIST'], tags['TRACKNUMBER'], tags['GENRE'], tags['DATE'], mp3_filename)
+			flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']), esc(mp3_filename))
 
 		if self.options.verbose:
 			print(escape(flac_command))
@@ -154,7 +158,7 @@ def main():
 
 				if options.output and options.passkey and options.tracker and not options.notorrent:
 					if options.verbose: print('Creating torrent...')
-					torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.output + os.path.basename(flacdir)), flacdir)
+					torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.output + os.path.basename(flacdir)), esc(flacdir))
 					if options.verbose: print(escape(torrent_command))
 					os.system(escape(torrent_command))
 
