@@ -17,7 +17,8 @@ VERSION = "3.3"
 ### BEGIN CONFIGURATION ###
 
 # Output folder unless specified: ("/home/user/Desktop/")
-output = os.path.join(os.environ['HOME'], "Desktop/")
+#output = os.path.join(os.environ['HOME'], "Desktop/")
+output = os.getcwd()
 
 # Do you want to move additional files (.jpg, .log, etc)?
 moveother = 1
@@ -119,6 +120,8 @@ def main():
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
 	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
 	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
+	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not move log files after conversion (Default: False)')
+	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not move cue files after conversion (Default: False)')
 	parser.add_option('-m', '--moveother',	action='store_true',	dest='moveother',	default=True,	help='move additional files (Default: True)')
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
 	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
@@ -196,7 +199,11 @@ def main():
 				if options.verbose: print('Moving other files...')
 				for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 					for name in files:
-						if not fnmatch.fnmatch(name, '*.flac'):
+						if options.nolog and fnmatch.fnmatch(name, '*.log'):
+							continue
+						if options.nocue and fnmatch.fnmatch(name, '*.cue'):
+							continue
+						if not fnmatch.fnmatch(name, '*.flac') and not fnmatch.fnmatch(name, '*.m3u'):
 							d = re.sub(re.escape(flacdir), mp3_dir, dirpath)
 							if not os.path.exists(d):
 								os.makedirs(d)
