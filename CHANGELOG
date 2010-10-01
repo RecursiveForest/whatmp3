@@ -1,3 +1,8 @@
+# 3.4
+- Ignore m3u files
+- Add --nocue and --nolog options
+- Change default output directory to cwd
+
 # 3.3
 - Fix and improve FLAC string removal
 - Python 2.5 compatibility
