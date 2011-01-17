@@ -10,8 +10,9 @@ import re
 import fnmatch
 import shutil
 from optparse import OptionParser
+import threading
 
-VERSION = "3.5"
+VERSION = "3.4"
 
 ### BEGIN CONFIGURATION ###
 
@@ -31,6 +32,9 @@ tracker = "http://tracker.what.cd:34000/"
 # Specify torrent passkey
 passkey = ""
 
+# Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
+max_threads = 1
+
 # Default encoding options
 enc_options = {
 	'320':	{'enc': 'lame',		'opts': '-b 320 --ignore-tag-errors'},
@@ -46,13 +50,65 @@ enc_options = {
 codecs = []
 
 # os.system() and os.popen() have issues with `
-def escape_backtick(pattern):
+def escape(pattern):
 	pattern = re.sub('`', '\`', pattern)
 	return pattern
 
-def escape_quote(pattern):
+def esc(pattern):
 	pattern = re.sub('"', '\\"', pattern)
 	return pattern
+
+class Transcode(threading.Thread):
+	def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
+		threading.Thread.__init__(self)
+		self.file = file
+		self.flacdir = flacdir
+		self.mp3_dir = mp3_dir
+		self.codec = codec
+		self.options = options
+		self.cv = cv
+
+	def run(self):
+		tags = {}
+		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
+			tagcommand = 'metaflac --show-tag=' + esc(tag) + ' "' + esc(self.file) + '"'
+			temp = re.sub('\S.*=', '', os.popen(escape(tagcommand)).read().rstrip())
+			tags.update({tag:temp})
+			del temp
+
+		if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
+			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
+
+		mp3_filename = re.sub(re.escape(self.flacdir), self.mp3_dir, self.file)
+		mp3_filename = re.sub('\.flac$', '', mp3_filename)
+		if not os.path.exists(os.path.dirname(mp3_filename)):
+			os.makedirs(os.path.dirname(mp3_filename))
+
+		flac_command = ''
+
+		if enc_options[self.codec]['enc'] == 'lame':
+			flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --tg "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
+		elif enc_options[self.codec]['enc'] == 'oggenc':
+			flac_command = 'oggenc -Q %s -t "%s" -l "%s" -a "%s" -N "%s" -G "%s" -d "%s" -o "%s.ogg" - 2>&1'
+		elif enc_options[self.codec]['enc'] == 'ffmpeg':
+			flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
+		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
+			flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
+
+		if enc_options[self.codec]['enc'] == 'neroAacEnc':
+			flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(mp3_filename), esc(mp3_filename), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']))
+		else:
+			flac_command = 'flac -dc -- "' + esc(self.file) + '" | ' + flac_command % (esc(enc_options[self.codec]['opts']), esc(tags['TITLE']), esc(tags['ALBUM']), esc(tags['ARTIST']), esc(tags['TRACKNUMBER']), esc(tags['GENRE']), esc(tags['DATE']), esc(mp3_filename))
+
+		if self.options.verbose:
+			print(escape(flac_command))
+		os.system(escape(flac_command))
+
+		self.cv.acquire()
+		self.cv.notify_all()
+		self.cv.release()
+
+		return 0
 
 def add_enc_option(option, opt, value, parser):
 	codecs.append(opt[2:])
@@ -72,6 +128,7 @@ def main():
 	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
 	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',		default=zeropad,	help='zeropad track numbers (Default: True)')
 	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
+	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
 	parser.add_option('--FLAC',		action="callback",	callback=add_enc_option)
 
 	for enc_opt in enc_options.keys():
@@ -104,9 +161,9 @@ def main():
 
 				if options.output and options.passkey and options.tracker and not options.notorrent:
 					if options.verbose: print('Creating torrent...')
-					torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(options.output + os.path.basename(flacdir)), escape_quote(flacdir))
-					if options.verbose: print(escape_backtick(torrent_command))
-					os.system(escape_backtick(torrent_command))
+					torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, esc(options.output + os.path.basename(flacdir)), esc(flacdir))
+					if options.verbose: print(escape(torrent_command))
+					os.system(escape(torrent_command))
 
 				print('Finished working with FLAC')
 				continue
@@ -122,41 +179,19 @@ def main():
 
 			print('Encoding with ' + codec + ' started...')
 
-			for flac in flacfiles:
-				tags = {}
-				for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
-					tagcommand = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(flac) + '"'
-					temp = re.sub('\S.*=', '', os.popen(escape_backtick(tagcommand)).read().rstrip())
-					tags.update({tag:temp})
-					del temp
+			threads = []
+			cv = threading.Condition()
+			for file in flacfiles:
+				cv.acquire()
+				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
+					cv.wait()
+				cv.release()
+				t=Transcode(file, flacdir, mp3_dir, codec, options, cv)
+				t.start()
+				threads.append(t)
 
-				if options.zeropad and len(tags['TRACKNUMBER']) == 1:
-					tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
-
-				mp3_filename = re.sub(re.escape(flacdir), mp3_dir, flac)
-				mp3_filename = re.sub('\.flac$', '', mp3_filename)
-				if not os.path.exists(os.path.dirname(mp3_filename)):
-					os.makedirs(os.path.dirname(mp3_filename))
-
-				flac_command = ''
-
-				if enc_options[codec]['enc'] == 'lame':
-					flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --tg "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
-				elif enc_options[codec]['enc'] == 'oggenc':
-					flac_command = 'oggenc -Q %s -t "%s" -l "%s" -a "%s" -N "%s" -G "%s" -d "%s" -o "%s.ogg" - 2>&1'
-				elif enc_options[codec]['enc'] == 'ffmpeg':
-					flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
-				elif enc_options[codec]['enc'] == 'neroAacEnc':
-					flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
-
-				if enc_options[codec]['enc'] == 'neroAacEnc':
-					flac_command = 'flac -dc -- "' + escape_quote(flac) + '" | ' + flac_command % (escape_quote(enc_options[codec]['opts']), escape_quote(mp3_filename), escape_quote(mp3_filename), escape_quote(tags['TITLE']), escape_quote(tags['ALBUM']), escape_quote(tags['ARTIST']), escape_quote(tags['TRACKNUMBER']), escape_quote(tags['GENRE']), escape_quote(tags['DATE']))
-				else:
-					flac_command = 'flac -dc -- "' + escape_quote(flac) + '" | ' + flac_command % (escape_quote(enc_options[codec]['opts']), escape_quote(tags['TITLE']), escape_quote(tags['ALBUM']), escape_quote(tags['ARTIST']), escape_quote(tags['TRACKNUMBER']), escape_quote(tags['GENRE']), escape_quote(tags['DATE']), escape_quote(mp3_filename))
-
-				if options.verbose:
-					print(escape_backtick(flac_command))
-				os.system(escape_backtick(flac_command))
+			for t in threads:
+				t.join()
 
 			print('\nEncoding with ' + codec + ' finished.')
 
@@ -180,17 +215,17 @@ def main():
 				for dirpath, dirs, files in os.walk(mp3_dir, topdown=False):
 					for name in dirs:
 						if enc_options[codec]['enc'] == 'lame':
-							os.system(escape_backtick('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
+							os.system(escape('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
 						if enc_options[codec]['enc'] == 'oggenc':
-							os.system(escape_backtick('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
+							os.system(escape('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
 						if enc_options[codec]['enc'] == 'neroAacEnc':
-							os.system(escape_backtick('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
+							os.system(escape('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				if options.verbose: print('Creating torrent...')
-				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_backtick(options.output + os.path.basename(mp3_dir)), mp3_dir)
-				if options.verbose: print(escape_backtick(torrent_command))
-				os.system(escape_backtick(torrent_command))
+				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape(options.output + os.path.basename(mp3_dir)), mp3_dir)
+				if options.verbose: print(escape(torrent_command))
+				os.system(escape(torrent_command))
 
 		if options.verbose: print('All done with ' + flacdir + ' ...')
 	return 0
