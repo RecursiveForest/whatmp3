@@ -32,6 +32,8 @@ Running `whatmp3` on its own won't do too much. You need to specify the lame or 
 		run NUM encoding threads (default 1)
 	--replaygain
 		enables replaygain (default false); please note replaygain is not allowed on what.cd
+	--dither
+		enables dithering (default false)
 	
 Minimally, you need a passkey, a tracker, and an encoding option to create a 
 working torrent to upload
