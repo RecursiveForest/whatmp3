@@ -12,7 +12,7 @@ import shutil
 from optparse import OptionParser
 import threading
 
-VERSION = "4.0"
+VERSION = "3.5"
 
 ### BEGIN CONFIGURATION ###
 
@@ -91,7 +91,6 @@ class Transcode(threading.Thread):
 		if not os.path.exists(os.path.dirname(mp3_filename)):
 			os.makedirs(os.path.dirname(mp3_filename))
 
-		dither_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
 		flac_command = ''
 
 		if enc_options[self.codec]['enc'] == 'lame':
