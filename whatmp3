@@ -80,8 +80,9 @@ class Transcode(threading.Thread):
 
 	def run(self):
 		tags = {}
-		for tag, value in mutagen.flac.Open(self.file):
-			tags.update({tag: value})
+		m = mutagen.flac.Open(self.file)
+		for tag in m:
+			tags.update({tag: m[tag]})
 
 		if self.options.zeropad and len(tags.get('TRACKNUMBER', '')) == 1:
 			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
