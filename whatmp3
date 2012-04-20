@@ -247,6 +247,8 @@ def main():
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				if options.verbose: print('Creating torrent...')
 				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_backtick(os.path.join(options.torrent_dir, os.path.basename(mp3_dir))), mp3_dir)
+				if options.nodate:
+					torrent_command += ' -d'
 				if options.verbose: print(escape_backtick(torrent_command))
 				os.system(escape_backtick(torrent_command))
 
