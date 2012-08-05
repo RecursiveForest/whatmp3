@@ -193,8 +193,9 @@ def main():
 
 		for codec in codecs:
 			mp3_dir = options.output + os.path.basename(flacdir)
-			if 'FLAC' in flacdir:
-				mp3_dir = re.sub(re.compile('FLAC', re.I), codec, mp3_dir)
+			flacre = re.compile('FLAC', re.IGNORECASE)
+			if flacre.search(flacdir):
+				mp3_dir = flacre.sub(codec, mp3_dir)
 			else:
 				mp3_dir = mp3_dir + " (" + codec + ")"
 			if not os.path.exists(mp3_dir):
