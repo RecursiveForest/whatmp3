@@ -10,36 +10,52 @@ import re
 import fnmatch
 import shutil
 from optparse import OptionParser
+from ConfigParser import ConfigParser
 import threading
 
 VERSION = "3.5.2"
 
 ### BEGIN CONFIGURATION ###
+# If the 'type' key is specified (should be a callable expression), use it for converting config values.
+# Otherwise, the config value is assumed to be a str.
+confVars = {
+	'output':
+		{'comment':'Output folder unless specified. Keyword "cwd" translates to os.getcwd().',
+		 'default':'cwd',
+		 'type':lambda x: os.getcwd() if x=='cwd' else x},
+	'torrent_dir':
+		{'comment':'Directory in which to place torrent files. Keyword "output" translates to the same directory as output.',
+		 'default':'output'
+		 },
+	'moveother':{
+		'comment':'Do you want to move additional files (.jpg, .log, etc)?',
+		'default':'1',
+		'type':lambda x: bool(int(x))},
+	'zeropad':
+		{'comment':'Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)',
+		'default':'1',
+		 'type':lambda x: bool(int(x))},
+	'dither':
+		{'comment':'Do you want to dither FLACs to 16/44 before encoding?',
+		 'default':'0',
+		 'type':lambda x:bool(int(x))},
+	'tracker':
+		{'comment':'Specify tracker ("http://tracker.what.cd:34000/")',
+		 'default':'http://tracker.what.cd:34000/'},
+	'passkey':
+		{'comment':'Specify torrent passkey',
+		 'default':''},
+	'max_threads':
+		{'comment':'Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)',
+		 'default':'1',
+		 'type':int}
+	}
 
-# Output folder unless specified: ("/home/user/Desktop/")
-#output = os.path.join(os.environ['HOME'], "Desktop/")
-output = os.getcwd()
-
-# Separate torrent output folder (defaults to output):
-torrent_dir = output
-
-# Do you want to move additional files (.jpg, .log, etc)?
-moveother = 1
-
-# Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
-zeropad = 1
-
-# Do you want to dither FLACs to 16/44 before encoding?
-dither = 0
-
-# Specify tracker ("http://tracker.what.cd:34000/")
-tracker = "http://tracker.what.cd:34000/"
-
-# Specify torrent passkey
-passkey = ""
-
-# Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
-max_threads = 1
+def configDeclaration(name):
+	global confVars
+	return '# %s\n%s = %s\n'%(confVars[name]['comment'],name,confVars[name]['default'])
+	
+confFile = os.path.expanduser('~/.whatmp3rc')
 
 # Default encoding options
 enc_options = {
@@ -134,26 +150,48 @@ def add_enc_option(option, opt, value, parser):
 	codecs.append(opt[2:])
 
 def main():
+	global confFile,confVars,VERSION
+	# Load configuration if available
+	if os.path.exists(confFile):
+		confP = ConfigParser()
+		confFileH = open(confFile,'r')
+		confP.readfp(confFileH)
+		conf = dict(confP.items('main'))
+		confFileH.close()
+		missingVars = filter(lambda v: v not in conf.keys(),confVars.keys())
+		if len(missingVars) > 0:
+			print "Missing configuration variables: %s (as of version %s)"%(','.join(missingVars),VERSION)
+			open(confFile,'a').write('\n'.join([configDeclaration(v) for v in missingVars]))
+			print "Updated configuration file (%s) with new variables. See to it that they're set properly."%confFile
+			exit(0);
+		for v in filter(lambda k: 'type' in confVars[k].keys(),conf.keys()): # Convert options
+			conf[v] = confVars[v]['type'](conf[v])
+		if conf['torrent_dir'] == 'output': conf['torrent_dir'] = conf['output']
+	else:
+		open(confFile,'w').write('# Configuration file for whatmp3\n[main]\n'+'\n'.join([configDeclaration(var) for var in confVars.keys()]))
+		print "Configuration file (%s) missing, so it has been created. Please fill in the necessary details before running."%confFile
+		exit(0)
+
 	# Parse options and arguments
 	usage_text = "%prog [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC"
 	info_text = "Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, vorbisgain, and sox."
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
-	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
-	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
-	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not move log files after conversion (Default: False)')
-	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not move cue files after conversion (Default: False)')
-	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
-	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
-	parser.add_option('-m', '--moveother',	action='store_true',	dest='moveother',	default=moveother,	help='move additional files (Default: True)')
-	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
-	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
-	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
-	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=torrent_dir,	help='set independent torrent output directory')
-	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',		default=zeropad,	help='zeropad track numbers (Default: True)')
-	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
-	parser.add_option('-d', '--dither',	action='store_true',	dest='dither',		default=dither,	help='dither FLACs to 16/44 before encoding (Default: False)')
-	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
-	parser.add_option('-c', '--original',	action='store_true',	dest='original',	default=False,	help='create a torrent for the original FLAC')
+	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',			default=False,			help='increase verbosity (Default: False)')
+	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',		default=False,			help='will not create a torrent after conversion (Default: False)')
+	parser.add_option('--nolog',		action='store_true',	dest='nolog',			default=False,			help='will not move log files after conversion (Default: False)')
+	parser.add_option('--nocue',		action='store_true',	dest='nocue',			default=False,			help='will not move cue files after conversion (Default: False)')
+	parser.add_option('--nodate',           action='store_true',    dest='nodate',          	default=False,  		help='do not write the creation date to the .torrent file (Default: False)')
+	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      	default=False,  		help='do not insert a genre tag in MP3 files (Default: False)')
+	parser.add_option('-m', '--moveother',	action='store_true',	dest='moveother',		default=conf['moveother'],	help='move additional files (Default: %s)'%bool(int(conf['moveother'])))
+	parser.add_option('-p', '--passkey',	dest='passkey',		default=conf['passkey'],	help='tracker PASSKEY', 	metavar='PASSKEY')
+	parser.add_option('-t', '--tracker',	dest='tracker',		default=conf['tracker'],	help='tracker URL (Default: "%s")'%conf['tracker'], metavar='URL')
+	parser.add_option('-o', '--output',	dest='output',		default=conf['output'],		help='set the output PATH', 	metavar='PATH')
+	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=conf['torrent_dir'],	help='set independent torrent output directory')
+	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',			default=conf['zeropad'],	help='zeropad track numbers (Default: %s)'%bool(int(conf['zeropad'])))
+	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',		default=False,			help='add ReplayGain to new files (Default: False)')
+	parser.add_option('-d', '--dither',	action='store_true',	dest='dither',			default=conf['dither'],		help='dither FLACs to 16/44 before encoding (Default: %s)'%bool(int(conf['dither'])))
+	parser.add_option('--threads',		type="int",		dest='max_threads',		default=conf['max_threads'],	help='set number of threads THREADS (Default: %d)'%int(conf['max_threads']), metavar='THREADS')
+	parser.add_option('-c', '--original',	action='store_true',	dest='original',		default=False,			help='create a torrent for the original FLAC')
 
 	for enc_opt in enc_options.keys():
 		parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option, help='convert to %s' % (enc_opt))
