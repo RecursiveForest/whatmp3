@@ -12,7 +12,7 @@ import shutil
 from optparse import OptionParser
 import threading
 
-VERSION = "3.5.2"
+VERSION = "3.6"
 
 ### BEGIN CONFIGURATION ###
 
@@ -65,6 +65,10 @@ def escape_quote(pattern):
 	pattern = re.sub('"', '\\"', pattern)
 	return pattern
 
+def escape_percent(pattern):
+	pattern = re.sub('%', '%%', pattern)
+	return pattern
+
 class Transcode(threading.Thread):
 	def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
 		threading.Thread.__init__(self)
@@ -92,6 +96,7 @@ class Transcode(threading.Thread):
 			os.makedirs(os.path.dirname(mp3_filename))
 
 		flac_command = ''
+		mp3_filename = escape_percent(mp3_filename)	# string % (params) will break on filenames including an unescaped % character
 
 		if enc_options[self.codec]['enc'] == 'lame':
 			if self.options.skip_genre:
@@ -110,7 +115,7 @@ class Transcode(threading.Thread):
 		if self.options.dither:
 			flac_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither | ' + flac_command
 
-		flac_command = 'flac -dc -- "' + escape_quote(self.file) + '" | ' + flac_command
+		flac_command = 'flac -dc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
 
 		if enc_options[self.codec]['enc'] == 'neroAacEnc':
 			flac_command = flac_command % (escape_quote(enc_options[self.codec]['opts']), escape_quote(mp3_filename), escape_quote(mp3_filename), escape_quote(tags['TITLE']), escape_quote(tags['ALBUM']), escape_quote(tags['ARTIST']), escape_quote(tags['TRACKNUMBER']), escape_quote(tags['GENRE']), escape_quote(tags['DATE']))
@@ -176,7 +181,7 @@ def main():
 
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
-				if fnmatch.fnmatch(name, '*.flac'):
+				if fnmatch.fnmatch(name, '*.flac') or fnmatch.fnmatch(name, '*.FLAC'):
 					flacfiles.append(os.path.join(dirpath, name))
 		if options.original:
 			print('Working with FLAC...')
