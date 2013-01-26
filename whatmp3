@@ -62,6 +62,7 @@ enc_options = {
 	'320':	{'enc': 'lame',  	'opts': '-q 0 -b 320 --ignore-tag-errors'},
 	'V0':	{'enc': 'lame',		'opts': '-q 0 -V 0 --vbr-new --ignore-tag-errors'},
 	'V2':	{'enc': 'lame',		'opts': '-q 0 -V 2 --vbr-new --ignore-tag-errors'},
+	'V3':   {'enc': 'lame',		'opts': '-q 0 -V 3 --vbr-new --ignore-tag-errors'},
 	'Q8':	{'enc': 'oggenc',	'opts': '-q 8'},
 	'AAC':	{'enc': 'neroAacEnc',	'opts': '-br 320000'},
 	'ALAC':	{'enc': 'ffmpeg',	'opts': '-i - -acodec alac'},
