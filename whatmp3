@@ -3,6 +3,7 @@
 ##############################################################
 # whatmp3 - Convert FLAC to mp3, create what.cd torrent.
 # Created by shardz (logik.li), demonstar55, and The_Creator
+# Shell-less fork with external config by Deconstrained
 ##############################################################
 
 import os
@@ -11,9 +12,10 @@ import fnmatch
 import shutil
 from optparse import OptionParser
 from ConfigParser import ConfigParser
+from subprocess import Popen,PIPE
 import threading
 
-VERSION = "3.5.2"
+VERSION = "3.6-D"
 
 ### BEGIN CONFIGURATION ###
 # If the 'type' key is specified (should be a callable expression), use it for converting config values.
@@ -59,14 +61,14 @@ confFile = os.path.expanduser('~/.whatmp3rc')
 
 # Default encoding options
 enc_options = {
-	'320':	{'enc': 'lame',  	'opts': '-q 0 -b 320 --ignore-tag-errors'},
-	'V0':	{'enc': 'lame',		'opts': '-q 0 -V 0 --vbr-new --ignore-tag-errors'},
-	'V2':	{'enc': 'lame',		'opts': '-q 0 -V 2 --vbr-new --ignore-tag-errors'},
-	'V3':   {'enc': 'lame',		'opts': '-q 0 -V 3 --vbr-new --ignore-tag-errors'},
+	'320':	{'enc': 'lame',  	'opts': '-q 0 -b 320 --add-id3v2 --ignore-tag-errors'},
+	'V0':	{'enc': 'lame',		'opts': '-q 0 -V 0 --vbr-new --add-id3v2 --ignore-tag-errors'},
+	'V2':	{'enc': 'lame',		'opts': '-q 0 -V 2 --vbr-new --add-id3v2 --ignore-tag-errors'},
+	'V3':   {'enc': 'lame',		'opts': '-q 0 -V 3 --vbr-new --add-id3v2 --ignore-tag-errors'},
 	'Q8':	{'enc': 'oggenc',	'opts': '-q 8'},
 	'AAC':	{'enc': 'neroAacEnc',	'opts': '-br 320000'},
-	'ALAC':	{'enc': 'ffmpeg',	'opts': '-i - -acodec alac'},
-	'FLAC': {'enc': 'flac',		'opts': '--best'}
+	'ALAC':	{'enc': 'avconv',	'opts': '-acodec alac'},
+	'FLAC': {'enc': 'flac',		'opts': '--best -s'}
 }
 
 ### END CONFIGURATION ###
@@ -83,63 +85,139 @@ def escape_quote(pattern):
 	return pattern
 
 class Transcode(threading.Thread):
-	def __init__(self, file, flacdir, mp3_dir, codec, options, cv):
+	metaflac_fields = ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE')
+
+	# Each entry is a tuple, and each item in the tuple is a function specifying how to format
+	# each command line tag argument (which should return a flat list; results will extend an
+	# argument list that gets passed to Popen).
+	tagopt_format = {
+		'lame':		tuple(map(lambda x: (lambda y:[x,y]),('--tt','--tl','--ta','--tn','--tg','--tc','--ty'))),
+		'oggenc':	tuple(map(lambda x: (lambda y:[x,y]),('-t','-l','-a','-N','-G','-c','-d'))),
+		'avconv':	tuple(map(lambda x: (lambda y:['-metadata','%s=%s'%(x,y)]), ('title','album','artist','track','genre','comment','date'))),
+		'neroAacEnc':	tuple(map(lambda x: (lambda y:['-meta:%s=%s'%(x,y)]),('title','album','artist','track','genre','comment','year'))),
+		'flac':		tuple(map(lambda x: (lambda y:['-T','%s=%s'%(x,y)]),metaflac_fields)),
+		}
+	
+	def __init__(self, filename, flacdir, mp3_dir, codec, options, cv):
+		global enc_options
 		threading.Thread.__init__(self)
-		self.file = file
+		self.file = filename
 		self.flacdir = flacdir
 		self.mp3_dir = mp3_dir
 		self.codec = codec
+		self.encoder = enc_options[codec]['enc']
+		self.encoder_opts = enc_options[codec]['opts'].split()
 		self.options = options
 		self.cv = cv
+		self.extension = {
+			'lame':		'mp3',
+			'oggenc':	'ogg',
+			'avconv':	'm4a',
+			'neroAacEnc':	'm4a',
+			'flac':		'flac'
+			}[self.encoder]
+		## Input file option 
+		self.inopt = {
+			'lame':		'-',
+			'oggenc':	'-',
+			'avconv':	'-i -',
+			'neroAacEnc':	'-if -',
+			'flac':		'-'
+			}[self.encoder].split()
+		## Output file option
+		self.outopt = {
+			'lame':		'',
+			'oggenc':	'-o',
+			'avconv':	'',
+			'neroAacEnc':	'-of',
+			'flac':		'-o'
+			}[self.encoder].split()
+	
+	@property
+	def tags(self):
+		"""The file's tags"""
+		if not hasattr(self,'_tags'):
+			self._tags = {}
+			for tag in self.metaflac_fields:
+				tagproc = Popen(['metaflac','--show-tag',tag,self.file],stdout=PIPE,stderr=PIPE)
+				self._tags[tag] = re.sub(r'\S+=','',tagproc.communicate()[0].rstrip())
+		return self._tags
+		
+	@property
+	def tagopts(self):
+		"""Compose the arguments for the tagging software, whether the encoder itself or another program"""
+		if not hasattr(self,'_tagopts'):
+			_format = self.tagopt_format[self.encoder]
+			self._tagopts = []
+			fields = enumerate(self.metaflac_fields)
+			if self.options.skip_genre: # Omit the GENRE metaflac field
+				fields = filter(lambda f:f[1]!='GENRE',fields)
+			for (i,field) in fields:
+				tag = self.tags[field].strip()
+				if tag != '':
+					self._tagopts.extend(_format[i](tag))
+		return self._tagopts
 
 	def run(self):
-		tags = {}
-		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
-			tagcommand = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(self.file) + '"'
-			temp = re.sub('\S.*=', '', os.popen(escape_backtick(tagcommand)).read().rstrip())
-			tags.update({tag:temp})
-			del temp
-
-		if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
-			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
+		if self.options.zeropad and len(self.tags['TRACKNUMBER']) == 1:
+			try: self.tags['TRACKNUMBER'] = '%02d'%int(self.tags['TRACKNUMBER'])
+			except ValueError: pass
 
 		mp3_filename = re.sub(re.escape(self.flacdir), self.mp3_dir, self.file)
-		mp3_filename = re.sub('\.flac$', '', mp3_filename)
+		mp3_filename = re.sub('\.flac$', '', mp3_filename).rstrip()
+		filename = '%s.%s'%(mp3_filename,self.extension)
 		if not os.path.exists(os.path.dirname(mp3_filename)):
 			os.makedirs(os.path.dirname(mp3_filename))
+		self.outopt.append(filename)
 
 		flac_command = ''
 
-		if enc_options[self.codec]['enc'] == 'lame':
-			if self.options.skip_genre:
-				flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
-			else:
-				flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --tg "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
-		elif enc_options[self.codec]['enc'] == 'oggenc':
-			flac_command = 'oggenc -Q %s -t "%s" -l "%s" -a "%s" -N "%s" -G "%s" -d "%s" -o "%s.ogg" - 2>&1'
-		elif enc_options[self.codec]['enc'] == 'ffmpeg':
-			flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
-		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
-			flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
-		elif enc_options[self.codec]['enc'] == 'flac':
-			flac_command = 'flac %s -s -T "TITLE=%s" -T "ALBUM=%s" -T "ARTIST=%s" -T "TRACKNUMBER=%s" -T "GENRE=%s" -T "DATE=%s" -o "%s.flac" - 2>&1'
+		## The decoding process:
+		deproc = ['flac','-dc',self.file]
 
+		## The dithering process:
+		diproc = 'sox -t wav - -b 16 -t wav - rate 44100 dither'.split()
+
+		## The encoding process:
+		enproc = [self.encoder]
+		# Input stream
+		enproc.extend(self.inopt)
+		# Options
+		enproc.extend(self.encoder_opts)
+		# Tagging options (exclude encoding programs that can't do tagging on the fly)
+		if not self.encoder in ('neroAacEnc',):
+			enproc.extend(self.tagopts)
+		# Output stream
+		enproc.extend(self.outopt)
+
+		## Spawn the transcoding pipeline:
+		track = "%s: %s (%s): %s %s"%tuple(map(lambda x: self.tags[x],('ARTIST','ALBUM','DATE','TRACKNUMBER','TITLE')))
+		deproc = Popen(deproc,stdout=PIPE,stderr=PIPE)
+		print ">>> %s: began %s..."%(self.name,track)
 		if self.options.dither:
-			flac_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither | ' + flac_command
-
-		flac_command = 'flac -dc -- "' + escape_quote(self.file) + '" | ' + flac_command
-
-		if enc_options[self.codec]['enc'] == 'neroAacEnc':
-			flac_command = flac_command % (escape_quote(enc_options[self.codec]['opts']), escape_quote(mp3_filename), escape_quote(mp3_filename), escape_quote(tags['TITLE']), escape_quote(tags['ALBUM']), escape_quote(tags['ARTIST']), escape_quote(tags['TRACKNUMBER']), escape_quote(tags['GENRE']), escape_quote(tags['DATE']))
+			diproc = Popen(diproc,stdin=deproc.stdout,stdout=PIPE,stderr=PIPE)
+			enproc = Popen(enproc,stdin=diproc.stdout,stdout=PIPE,stderr=PIPE)
 		else:
-			genre_tag = (escape_quote(tags['GENRE']),)
-			if enc_options[self.codec]['enc'] == 'lame' and self.options.skip_genre:
-				genre_tag = ()
-			params = (escape_quote(enc_options[self.codec]['opts']), escape_quote(tags['TITLE']), escape_quote(tags['ALBUM']), escape_quote(tags['ARTIST']), escape_quote(tags['TRACKNUMBER'])) + genre_tag + (escape_quote(tags['DATE']), escape_quote(mp3_filename))
-			flac_command = flac_command % params
+			enproc = Popen(enproc,stdin=deproc.stdout,stdout=PIPE,stderr=PIPE)
+
+		## Wait for encoding to finish
+		enproc.wait()
+
+		## Print messages if verboseness is enabled:
 		if self.options.verbose:
-			print(escape_backtick(flac_command))
-		os.system(escape_backtick(flac_command))
+			print deproc.stderr.read()
+			print enproc.stdout.read()
+			print enproc.stderr.read()
+
+		## Tag the file with a separate command (if using neroAacEnc)
+		if self.encoder == 'neroAacEnc':
+			ntproc = ['neroAacTag']
+			ntproc.append(filename)
+			ntproc.extend(self.tagopts)
+			ntproc = Popen(ntproc,stdout=PIPE,stderr=PIPE)
+			ntproc.wait()
+
+		print "... %s: completed %s."%(self.name,track)
 
 		self.cv.acquire()
 		self.cv.notify_all()
@@ -243,12 +321,12 @@ def main():
 
 			threads = []
 			cv = threading.Condition()
-			for file in flacfiles:
+			for filename in flacfiles:
 				cv.acquire()
 				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
 					cv.wait()
 				cv.release()
-				t=Transcode(file, flacdir, mp3_dir, codec, options, cv)
+				t=Transcode(filename, flacdir, mp3_dir, codec, options, cv)
 				t.start()
 				threads.append(t)
 
@@ -296,3 +374,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
