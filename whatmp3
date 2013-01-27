@@ -84,6 +84,10 @@ def escape_quote(pattern):
 	pattern = re.sub('"', '\\"', pattern)
 	return pattern
 
+def escape_percent(pattern):
+	pattern = re.sub('%', '%%', pattern)
+	return pattern
+
 class Transcode(threading.Thread):
 	metaflac_fields = ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE')
 
@@ -171,6 +175,7 @@ class Transcode(threading.Thread):
 		self.outopt.append(filename)
 
 		flac_command = ''
+		mp3_filename = escape_percent(mp3_filename)	# string % (params) will break on filenames including an unescaped % character
 
 		## The decoding process:
 		deproc = ['flac','-dc',self.file]
@@ -293,7 +298,7 @@ def main():
 
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
-				if fnmatch.fnmatch(name, '*.flac'):
+				if fnmatch.fnmatch(name, '*.flac') or fnmatch.fnmatch(name, '*.FLAC'):
 					flacfiles.append(os.path.join(dirpath, name))
 		if options.original:
 			print('Working with FLAC...')
