@@ -99,18 +99,30 @@ class Transcode(threading.Thread):
 		mp3_filename = escape_percent(mp3_filename)	# string % (params) will break on filenames including an unescaped % character
 
 		if enc_options[self.codec]['enc'] == 'lame':
+			ext = '.mp3'
 			if self.options.skip_genre:
 				flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
 			else:
 				flac_command = 'lame -S %s --tt "%s" --tl "%s" --ta "%s" --tn "%s" --tg "%s" --ty "%s" --add-id3v2 - "%s.mp3" 2>&1'
 		elif enc_options[self.codec]['enc'] == 'oggenc':
+			ext = '.ogg'
 			flac_command = 'oggenc -Q %s -t "%s" -l "%s" -a "%s" -N "%s" -G "%s" -d "%s" -o "%s.ogg" - 2>&1'
 		elif enc_options[self.codec]['enc'] == 'ffmpeg':
+			ext = '.m4a'
 			flac_command = 'ffmpeg %s -metadata title="%s" -metadata album="%s" -metadata author="%s" -metadata track="%s" -metadata genre="%s" -metadata date="%s" "%s.m4a" 2>&1'
 		elif enc_options[self.codec]['enc'] == 'neroAacEnc':
+			ext = '.m4a'
 			flac_command = 'neroAacEnc %s -if - -of "%s.m4a" 2>&1 && neroAacTag "%s.m4a" -meta:title="%s" -meta:album="%s" -meta:artist="%s" -meta:track="%s" -meta:genre="%s" -meta:year="%s"'
 		elif enc_options[self.codec]['enc'] == 'flac':
+			ext = '.flac'
 			flac_command = 'flac %s -s -T "TITLE=%s" -T "ALBUM=%s" -T "ARTIST=%s" -T "TRACKNUMBER=%s" -T "GENRE=%s" -T "DATE=%s" -o "%s.flac" - 2>&1'
+
+		# We now know the full filename
+		if os.path.exists(mp3_filename+ext) and not self.options.overwrite:
+			self.cv.acquire()
+			self.cv.notify_all()
+			self.cv.release()
+			return 0
 
 		if self.options.dither:
 			flac_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither | ' + flac_command
@@ -159,6 +171,7 @@ def main():
 	parser.add_option('-d', '--dither',	action='store_true',	dest='dither',		default=dither,	help='dither FLACs to 16/44 before encoding (Default: False)')
 	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
 	parser.add_option('-c', '--original',	action='store_true',	dest='original',	default=False,	help='create a torrent for the original FLAC')
+	parser.add_option('--overwrite',	action='store_true',	dest='overwrite',		default=False,	help='re-transcode the FLAC files even if they already exist in the output directory')
 
 	for enc_opt in enc_options.keys():
 		parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option, help='convert to %s' % (enc_opt))
