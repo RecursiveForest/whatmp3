@@ -36,7 +36,7 @@ dither = 0
 tracker = "http://tracker.what.cd:34000/"
 
 # Specify torrent passkey
-passkey = ""
+passkey = "satan"
 
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = 1
@@ -178,6 +178,7 @@ def main():
 	for flacdir in flacdirs:
 		flacdir = os.path.abspath(flacdir)
 		flacfiles = []
+		if not os.path.exists(options.torrent_dir): os.makedirs(options.torrent_dir)
 
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
@@ -188,7 +189,7 @@ def main():
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				if options.verbose: print('Creating torrent...')
-				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(options.output + os.path.basename(flacdir)), escape_quote(flacdir))
+				torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(os.path.join(options.torrent_dir, os.path.basename(flacdir))), escape_quote(flacdir))
 				if options.nodate:
 					torrent_command += ' -d'
 				if options.verbose: print(escape_backtick(torrent_command))
