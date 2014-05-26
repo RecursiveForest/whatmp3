@@ -127,7 +127,7 @@ class Transcode(threading.Thread):
 			flac_command = flac_command % params
 		if self.options.verbose:
 			print(escape_backtick(flac_command))
-		os.system(escape_backtick(flac_command) + " &")
+		os.system(escape_backtick(flac_command))
 
 		self.cv.acquire()
 		self.cv.notify_all()
