@@ -20,6 +20,8 @@ Running `whatmp3` on its own won't do too much. You need to specify the lame or 
 		copy other files in flac directory to torrent directory (default true)
 	--output="PATH"
 		specify output directory for torrents
+	--overwrite
+		re-transcode the FLAC files even if they already exist in the output directory
 	--zeropad
 		zeropad tracklists (default true)
 	--passkey="PASSKEY"
