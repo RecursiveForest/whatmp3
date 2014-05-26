@@ -16,8 +16,8 @@ Running `whatmp3` on its own won't do too much. You need to specify the lame or 
 		print help message and quit
 	--verbose
 		increase verbosity (default false)
-	--moveother
-		move other files in flac directory to torrent directory (default true)
+	--copyother
+		copy other files in flac directory to torrent directory (default true)
 	--output="PATH"
 		specify output directory for torrents
 	--zeropad

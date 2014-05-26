@@ -23,8 +23,8 @@ output = os.getcwd()
 # Separate torrent output folder (defaults to output):
 torrent_dir = output
 
-# Do you want to move additional files (.jpg, .log, etc)?
-moveother = 1
+# Do you want to copy additional files (.jpg, .log, etc)?
+copyother = 1
 
 # Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
 zeropad = 1
@@ -145,11 +145,11 @@ def main():
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
 	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
 	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
-	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not move log files after conversion (Default: False)')
-	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not move cue files after conversion (Default: False)')
+	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not copy log files after conversion (Default: False)')
+	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not copy cue files after conversion (Default: False)')
 	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
 	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
-	parser.add_option('-m', '--moveother',	action='store_true',	dest='moveother',	default=moveother,	help='move additional files (Default: True)')
+	parser.add_option('-m', '--copyother',	action='store_true',	dest='moveother',	default=moveother,	help='move additional files (Default: True)')
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
 	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
 	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
@@ -223,8 +223,8 @@ def main():
 
 			print('\nEncoding with ' + codec + ' finished.')
 
-			if options.moveother:
-				if options.verbose: print('Moving other files...')
+			if options.copyother:
+				if options.verbose: print('Copying other files...')
 				for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 					for name in files:
 						if options.nolog and fnmatch.fnmatch(name, '*.log'):
