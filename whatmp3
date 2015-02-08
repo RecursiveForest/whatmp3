@@ -11,6 +11,7 @@ import fnmatch
 import shutil
 from optparse import OptionParser
 import threading
+import multiprocessing
 
 VERSION = "3.6"
 
@@ -39,7 +40,7 @@ tracker = "http://tracker.what.cd:34000/"
 passkey = "satan"
 
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
-max_threads = 1
+max_threads = multiprocessing.cpu_count()
 
 # Default encoding options
 enc_options = {
