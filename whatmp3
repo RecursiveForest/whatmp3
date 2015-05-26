@@ -83,7 +83,7 @@ class Transcode(threading.Thread):
 		tags = {}
 		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
 			tagcommand = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(self.file) + '"'
-			temp = re.sub('\S.*=', '', os.popen(escape_backtick(tagcommand)).read().rstrip())
+			temp = re.sub('\S.+?=', '', os.popen(escape_backtick(tagcommand)).read().rstrip(), count=1)
 			tags.update({tag:temp})
 			del temp
 
