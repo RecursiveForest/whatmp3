@@ -127,15 +127,40 @@ class Transcode(threading.Thread):
 
 		return 0
 
-def add_enc_option(option, opt, value, parser):
-	codecs.append(opt[2:])
-
 def make_torrent(options, target):
 	if options.verbose: print('Creating torrent...')
 	torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(os.path.join(options.torrent_dir, os.path.basename(target))), escape_quote(target))
 	if options.nodate: torrent_command += ' -d'
 	if options.verbose: print(escape_backtick(torrent_command))
 	os.system(escape_backtick(torrent_command))
+
+def copyother(options, flacdir, outdir):
+	if options.verbose: print('Copying other files...')
+	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
+		for name in files:
+			if options.nolog and fnmatch.fnmatch(name, '*.log'):
+				continue
+			if options.nocue and fnmatch.fnmatch(name, '*.cue'):
+				continue
+			if not fnmatch.fnmatch(name, '*.flac') and not fnmatch.fnmatch(name, '*.m3u'):
+				d = re.sub(re.escape(flacdir), outdir, dirpath)
+				if not os.path.exists(d):
+					os.makedirs(d)
+				shutil.copy(os.path.join(dirpath, name), d)
+
+def replaygain(options, outdir):
+	if options.verbose: print('Applying replay gain...')
+	for dirpath, dirs, files in os.walk(outdir, topdown=False):
+		for name in dirs:
+			if enc_options[codec]['enc'] == 'lame':
+				os.system(escape_backtick('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
+			if enc_options[codec]['enc'] == 'oggenc':
+				os.system(escape_backtick('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
+			if enc_options[codec]['enc'] == 'neroAacEnc':
+				os.system(escape_backtick('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
+
+def add_enc_option(option, opt, value, parser):
+	codecs.append(opt[2:])
 
 def main():
 	# Parse options and arguments
@@ -147,12 +172,12 @@ def main():
 	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not copy log files after conversion (Default: False)')
 	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not copy cue files after conversion (Default: False)')
 	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
+	# FIXME: --skipgenre is broken
 	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
 	parser.add_option('-m', '--copyother',	action='store_true',	dest='copyother',	default=copyother,	help='copy additional files (Default: True)')
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
 	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
 	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
-	#parser.add_option('-')
 	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=torrent_dir,	help='set independent torrent output directory')
 	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',		default=zeropad,	help='zeropad track numbers (Default: True)')
 	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
@@ -191,14 +216,14 @@ def main():
 			print('Finished working with FLAC')
 
 		for codec in codecs:
-			mp3_dir = options.output + os.path.basename(flacdir)
+			outdir = options.output + os.path.basename(flacdir)
 			flacre = re.compile('FLAC', re.IGNORECASE)
 			if flacre.search(flacdir):
-				mp3_dir = flacre.sub(codec, mp3_dir)
+				outdir = flacre.sub(codec, outdir)
 			else:
-				mp3_dir = mp3_dir + " (" + codec + ")"
-			if not os.path.exists(mp3_dir):
-				os.makedirs(mp3_dir)
+				outdir = outdir + " (" + codec + ")"
+			if not os.path.exists(outdir):
+				os.makedirs(outdir)
 
 			print('Encoding with ' + codec + ' started...')
 
@@ -209,7 +234,7 @@ def main():
 				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
 					cv.wait()
 				cv.release()
-				t=Transcode(file, flacdir, mp3_dir, codec, options, cv)
+				t=Transcode(file, flacdir, outdir, codec, options, cv)
 				t.start()
 				threads.append(t)
 
@@ -219,33 +244,13 @@ def main():
 			print('\nEncoding with ' + codec + ' finished.')
 
 			if options.copyother:
-				if options.verbose: print('Copying other files...')
-				for dirpath, dirs, files in os.walk(flacdir, topdown=False):
-					for name in files:
-						if options.nolog and fnmatch.fnmatch(name, '*.log'):
-							continue
-						if options.nocue and fnmatch.fnmatch(name, '*.cue'):
-							continue
-						if not fnmatch.fnmatch(name, '*.flac') and not fnmatch.fnmatch(name, '*.m3u'):
-							d = re.sub(re.escape(flacdir), mp3_dir, dirpath)
-							if not os.path.exists(d):
-								os.makedirs(d)
-							shutil.copy(os.path.join(dirpath, name), d)
+				copyother(options, flacdir, outdir)
 
 			if options.replaygain and enc_options[codec]['enc'] != 'flac':
-				if options.verbose: print('Applying replay gain...')
-
-				for dirpath, dirs, files in os.walk(mp3_dir, topdown=False):
-					for name in dirs:
-						if enc_options[codec]['enc'] == 'lame':
-							os.system(escape_backtick('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
-						if enc_options[codec]['enc'] == 'oggenc':
-							os.system(escape_backtick('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
-						if enc_options[codec]['enc'] == 'neroAacEnc':
-							os.system(escape_backtick('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
+				replaygain(options, outdir)
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
-				make_torrent(options, mp3_dir)
+				make_torrent(options, outdir)
 
 		if options.verbose: print('All done with ' + flacdir + ' ...')
 	return 0
