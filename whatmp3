@@ -100,7 +100,7 @@ encoders = {
 		'GENRE':	'-T "GENRE=%(GENRE)s"',
 		'DATE':		'-T "DATE=%(DATE)s"',
 		'COMMENT':	'-T "COMMENT=%(COMMENT)s"',
-		'regain':	''
+		'regain':	'metaflac --add-replay-gain "%s"/*.flac'
 	}
 }
 
@@ -287,7 +287,7 @@ def main():
 			if options.copyother:
 				copyother(options, flacdir, outdir)
 
-			if options.replaygain and enc_options[codec]['enc'] != 'flac':
+			if options.replaygain:
 				replaygain(options, codec, outdir)
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
