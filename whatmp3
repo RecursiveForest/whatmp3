@@ -42,24 +42,69 @@ passkey = "satan"
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = multiprocessing.cpu_count()
 
+# Tags to copy (note: changing/adding to these requires changing/adding values in/to 'encoders' below)
+copy_tags = ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE')
+
 # Default encoding options
 enc_options = {
 	'320':	{'enc': 'lame',  	'ext': '.mp3',	'opts': '-q 0 -b 320 --ignore-tag-errors --noreplaygain'},
 	'V0':	{'enc': 'lame',		'ext': '.mp3',	'opts': '-q 0 -V 0 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'V2':	{'enc': 'lame',		'ext': '.mp3',	'opts': '-q 0 -V 2 --vbr-new --ignore-tag-errors --noreplaygain'},
-	'Q8':	{'enc': 'oggenc',	'ext': '.ogg',	'opts': '-q 8'},
+	'Q8':	{'enc': 'oggenc',	'ext': '.ogg',	'opts': '-q 8 --utf8'},
 	'AAC':	{'enc': 'neroAacEnc',	'ext': '.aac',	'opts': '-br 320000'},
 	'ALAC':	{'enc': 'ffmpeg',	'ext': '.alac',	'opts': '-i - -acodec alac'},
 	'FLAC': {'enc': 'flac',		'ext': '.flac',	'opts': '--best'}
 }
 
-tag_options = {
-	'lame':		'lame -S %(opts)s --tt "%(TITLE)s" --tl "%(ALBUM)s" --ta "%(ARTIST)s" --tn "%(TRACKNUMBER)s" --tg "%(GENRE)s" --ty "%(DATE)s" --add-id3v2 - "%(filename)s" 2>&1',
-	'oggenc':	'oggenc -Q %(opts)s -t "%(TITLE)s" -l "%(ALBUM)s" -a "%(ARTIST)s" -N "%(TRACKNUMBER)s" -G "%(GENRE)s" -d "%(DATE)s" -o "%(filename)s" - 2>&1',
-	'neroAacEnc':	'neroAacEnc %(opts)s -if - -of "%(filename)s" 2>&1 && neroAacTag "%(filename)s" -meta:title="%(TITLE)s" -meta:album="%(ALBUM)s" -meta:artist="%(ARTIST)s" -meta:track="%(TRACK)s" -meta:genre="%(GENRE)s" -meta:year="%(DATE)s"',
-	'ffmpeg':	'',
-	'flac':		'flac %(opts)s -s -T "TITLE=%(TITLE)s" -T "ALBUM=%(ALBUM)s" -T "ARTIST=%(ARTIST)s" -T "TRACKNUMBER=%(TRACKNUMBER)s" -T "GENRE=%(GENRE)s" -T "DATE=%(DATE)s" -o "%(filename)s" - 2>&1'
+encoders = {
+	'lame':	{
+		'enc':		'lame -S %(opts)s %(tags)s --add-id3v2 - "%(filename)s" 2>&1',
+		'TITLE':	'--tt "%(TITLE)s"',
+		'ALBUM':	'--tl "%(ALBUM)s"',
+		'ARTIST':	'--ta "%(ARTIST)s"',
+		'TRACKNUMBER':	'--tn "%(TRACKNUMBER)s"',
+		'GENRE':	'--tg "%(GENRE)s"',
+		'DATE':		'--ty "%(DATE)s"',
+		'COMMENT':	'--tc "%(COMMENT)s"',
+		'regain':	'mp3gain -q -c -s i "%s"/*.mp3'
+	},
+	'oggenc': {
+		'enc':		'oggenc -Q %(opts)s %(tags)s -o "%(filename)s" - 2>&1',
+		'TITLE':	'-t "%(TITLE)s"',
+		'ALBUM':	'-l "%(ALBUM)s"',
+		'ARTIST':	'-a "%(ARTIST)s"',
+		'TRACKNUMBER':	'-N "%(TRACKNUMBER)s"',
+		'GENRE':	'-G "%(GENRE)s"',
+		'DATE':		'-d "%(DATE)s"',
+		'COMMENT':	'-c "comment=%(COMMENT)s"',
+		'regain':	'vorbisgain -qafrs "%s"/*.ogg'
+	},
+	'neroAacEnc': {
+		'enc':		'neroAacEnc %(opts)s -if - -of "%(filename)s" 2>&1 && neroAacTag %(tags)s',
+		'TITLE':	'-meta:title="%(TITLE)s"',
+		'ALBUM':	'-meta:album="%(ALBUM)s"',
+		'ARTIST':	'-meta:artist="%(ARTIST)s"',
+		'TRACKNUMBER':	'-meta:track="%(TRACK)s"',
+		'GENRE':	'-meta:genre="%(GENRE)s"',
+		'DATE':		'-meta:year="%(DATE)s"',
+		'COMMENT':	'-meta:comment="%(COMMENT)s"',
+		'regain':	'aacgain -q -c "%s"/*.m4a'
+	},
+	'ffmpeg': {},
+	'flac': {
+		'enc':		'flac %(opts)s -s %(tags)s -o "%(filename)s" - 2>&1',
+		'TITLE':	'-T "TITLE=%(TITLE)s"',
+		'ALBUM':	'-T "ALBUM=%(ALBUM)s"',
+		'ARTIST':	'-T "ARTIST=%(ARTIST)s"',
+		'TRACKNUMBER':	'-T "TRACKNUMBER=%(TRACKNUMBER)s"',
+		'GENRE':	'-T "GENRE=%(GENRE)s"',
+		'DATE':		'-T "DATE=%(DATE)s"',
+		'COMMENT':	'-T "COMMENT=%(COMMENT)s"',
+		'regain':	''
+	}
 }
+
+dither_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
 
 ### END CONFIGURATION ###
 
@@ -90,35 +135,41 @@ class Transcode(threading.Thread):
 
 	def run(self):
 		tags = {}
-		for tag in ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE'):
+		for tag in copy_tags:
 			tagcommand = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(self.file) + '"'
 			temp = re.sub('\S.+?=', '', os.popen(escape_backtick(tagcommand)).read().rstrip(), count=1)
-			tags.update({tag:temp})
+			if temp:
+				tags.update({tag:escape_quote(temp)})
+				print("tag: %s <= %s\n" % (tag, temp))
 			del temp
-		if self.options.zeropad and len(tags['TRACKNUMBER']) == 1:
+		if self.options.zeropad and 'TRACKNUMBER' in tags and len(tags['TRACKNUMBER']) == 1:
 			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
+		if self.options.skip_genre and 'GENRE' in tags: del tags['GENRE']
 
 		outname = re.sub(re.escape(self.flacdir), self.mp3_dir, self.file)
 		outname = re.sub('\.flac$', '', outname)
 		if not os.path.exists(os.path.dirname(outname)):
 			os.makedirs(os.path.dirname(outname))
 
-		flac_command = ''
-		outname = escape_percent(outname)	# string % (params) will break on filenames including an unescaped % character
-		flac_command = tag_options[enc_options[self.codec]['enc']]
+		flac_command = encoders[enc_options[self.codec]['enc']]['enc']
+		tagline = ''
+		#outname = escape_percent(outname)	# string % (params) will break on filenames including an unescaped % character
+		for tag in tags:
+			tagline = tagline + " " + encoders[enc_options[self.codec]['enc']][tag]
+		print("tagline pre-tags: %s" % tagline)
+		tagline = tagline % tags
+		print("tagline post-tags: %s" % tagline)
 		if self.options.dither:
-			flac_command = 'sox -t wav - -b 16 -t wav - rate 44100 dither | ' + flac_command
+			flac_command = dither_command + ' | ' + flac_command
 		flac_command = 'flac -dc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
-		params = tags
-		params.update({
+		flac_command = flac_command % {
 			'opts': enc_options[self.codec]['opts'],
-			'filename': escape_quote(outname) + enc_options[self.codec]['ext']
-		})
-		if self.options.skip_genre:
-			params['GENRE'] = ''
-		flac_command = flac_command % params
+			'filename': escape_quote(outname) + enc_options[self.codec]['ext'],
+			'tags': tagline
+		}
 		if self.options.verbose:
 			print(escape_backtick(flac_command))
+		print(escape_backtick(flac_command))
 		os.system(escape_backtick(flac_command))
 
 		self.cv.acquire()
@@ -148,16 +199,12 @@ def copyother(options, flacdir, outdir):
 					os.makedirs(d)
 				shutil.copy(os.path.join(dirpath, name), d)
 
-def replaygain(options, outdir):
+# FIXME: Not all codecs have replaygain capabilities. This command is fugly.
+def replaygain(options, codec, outdir):
 	if options.verbose: print('Applying replay gain...')
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
-			if enc_options[codec]['enc'] == 'lame':
-				os.system(escape_backtick('mp3gain -q -c -s i "' + os.path.join(dirpath, name) + '"/*.mp3'))
-			if enc_options[codec]['enc'] == 'oggenc':
-				os.system(escape_backtick('vorbisgain -qafrs "' + os.path.join(dirpath, name) + '"/*.ogg'))
-			if enc_options[codec]['enc'] == 'neroAacEnc':
-				os.system(escape_backtick('aacgain -q -c "' + os.path.join(dirpath, name) + '"/*.m4a'))
+			os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % os.path.join(dirpath, name)))
 
 def add_enc_option(option, opt, value, parser):
 	codecs.append(opt[2:])
@@ -172,7 +219,6 @@ def main():
 	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not copy log files after conversion (Default: False)')
 	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not copy cue files after conversion (Default: False)')
 	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
-	# FIXME: --skipgenre is broken
 	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
 	parser.add_option('-m', '--copyother',	action='store_true',	dest='copyother',	default=copyother,	help='copy additional files (Default: True)')
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
@@ -247,7 +293,7 @@ def main():
 				copyother(options, flacdir, outdir)
 
 			if options.replaygain and enc_options[codec]['enc'] != 'flac':
-				replaygain(options, outdir)
+				replaygain(options, codec, outdir)
 
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				make_torrent(options, outdir)
