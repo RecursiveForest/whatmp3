@@ -138,9 +138,7 @@ class Transcode(threading.Thread):
 		for tag in copy_tags:
 			tagcommand = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(self.file) + '"'
 			temp = re.sub('\S.+?=', '', os.popen(escape_backtick(tagcommand)).read().rstrip(), count=1)
-			if temp:
-				tags.update({tag:escape_quote(temp)})
-				print("tag: %s <= %s\n" % (tag, temp))
+			if temp: tags.update({tag:escape_quote(temp)})
 			del temp
 		if self.options.zeropad and 'TRACKNUMBER' in tags and len(tags['TRACKNUMBER']) == 1:
 			tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
@@ -153,12 +151,9 @@ class Transcode(threading.Thread):
 
 		flac_command = encoders[enc_options[self.codec]['enc']]['enc']
 		tagline = ''
-		#outname = escape_percent(outname)	# string % (params) will break on filenames including an unescaped % character
 		for tag in tags:
 			tagline = tagline + " " + encoders[enc_options[self.codec]['enc']][tag]
-		print("tagline pre-tags: %s" % tagline)
 		tagline = tagline % tags
-		print("tagline post-tags: %s" % tagline)
 		if self.options.dither:
 			flac_command = dither_command + ' | ' + flac_command
 		flac_command = 'flac -dc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
@@ -202,6 +197,7 @@ def copyother(options, flacdir, outdir):
 # FIXME: Not all codecs have replaygain capabilities. This command is fugly.
 def replaygain(options, codec, outdir):
 	if options.verbose: print('Applying replay gain...')
+	os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
 			os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % os.path.join(dirpath, name)))
