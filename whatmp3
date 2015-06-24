@@ -239,6 +239,7 @@ def main():
 
 	if len(codecs) == 0 and not options.original:
 		print('You need to provide at least one format to transcode to (320, V0, Q8 ...); `whatmp3 --help`')
+		parser.error("Incorrect number of arguments")
 		exit()
 
 	for flacdir in flacdirs:
