@@ -193,7 +193,6 @@ def copyother(options, flacdir, outdir):
 					os.makedirs(d)
 				shutil.copy(os.path.join(dirpath, name), d)
 
-# FIXME: Not all codecs have replaygain capabilities. This command is fugly.
 def replaygain(options, codec, outdir):
 	if options.verbose: print('Applying replay gain...')
 	os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
