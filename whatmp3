@@ -164,7 +164,6 @@ class Transcode(threading.Thread):
 		}
 		if self.options.verbose:
 			print(escape_backtick(flac_command))
-		print(escape_backtick(flac_command))
 		os.system(escape_backtick(flac_command))
 
 		self.cv.acquire()
@@ -273,7 +272,7 @@ def main():
 			cv = threading.Condition()
 			for file in flacfiles:
 				cv.acquire()
-				while((threading.activeCount() == options.max_threads + 1) or (options.max_threads == 0 and threading.activeCount() == 2)):
+				while (threading.activeCount() == max(1, options.max_threads) + 1):
 					cv.wait()
 				cv.release()
 				t=Transcode(file, flacdir, outdir, codec, options, cv)
