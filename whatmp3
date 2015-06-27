@@ -257,12 +257,13 @@ def main():
 			print('Finished working with FLAC')
 
 		for codec in codecs:
-			outdir = options.output + os.path.basename(flacdir)
+			outdir = os.path.basename(flacdir)
 			flacre = re.compile('FLAC', re.IGNORECASE)
-			if flacre.search(flacdir):
+			if flacre.search(outdir):
 				outdir = flacre.sub(codec, outdir)
 			else:
 				outdir = outdir + " (" + codec + ")"
+			outdir = options.output + outdir
 			if not os.path.exists(outdir):
 				os.makedirs(outdir)
 
