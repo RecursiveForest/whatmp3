@@ -145,7 +145,7 @@ class Transcode(threading.Thread):
 		if self.options.skip_genre and 'GENRE' in tags: del tags['GENRE']
 
 		outname = re.sub(re.escape(self.flacdir), self.mp3_dir, self.file)
-		outname = re.sub('\.flac$', '', outname)
+		outname = re.sub(re.compile('\.flac$', re.IGNORECASE), '', outname)
 		if not os.path.exists(os.path.dirname(outname)):
 			os.makedirs(os.path.dirname(outname))
 
@@ -183,11 +183,11 @@ def copyother(options, flacdir, outdir):
 	if options.verbose: print('Copying other files...')
 	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 		for name in files:
-			if options.nolog and fnmatch.fnmatch(name, '*.log'):
+			if options.nolog and fnmatch.fnmatch(name.lower(), '*.log'):
 				continue
-			if options.nocue and fnmatch.fnmatch(name, '*.cue'):
+			if options.nocue and fnmatch.fnmatch(name.lower(), '*.cue'):
 				continue
-			if not fnmatch.fnmatch(name, '*.flac') and not fnmatch.fnmatch(name, '*.m3u'):
+			if not fnmatch.fnmatch(name.lower(), '*.flac') and not fnmatch.fnmatch(name.lower(), '*.m3u'):
 				d = re.sub(re.escape(flacdir), outdir, dirpath)
 				if not os.path.exists(d):
 					os.makedirs(d)
@@ -248,7 +248,7 @@ def main():
 
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
-				if fnmatch.fnmatch(name, '*.flac') or fnmatch.fnmatch(name, '*.FLAC'):
+				if fnmatch.fnmatch(name.lower(), '*.flac'):
 					flacfiles.append(os.path.join(dirpath, name))
 		if options.original:
 			print('Working with FLAC...')
