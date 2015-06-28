@@ -1,3 +1,22 @@
+# 3.6
+- Generalise --skipgenre to work on all default encoders
+- Generalise --replaygain similarly
+- Use multithreading.cpu_count() to determine default thread count
+- Become fully case insensitive
+- Fix %-in-filename bug
+- Fix flac-in-path bug
+- Fix extra ='s bug
+- Make --original respect --torrent-dir
+- Add --noreplaygain to lame commands
+- Rename --moveother to --copyother
+
+# 3.5
+- Don't remove FLAC from FLAC torrents
+- Replace lowercase flac in torrent directory
+- Respect --torrent-dir
+- Add --skip-genre
+- Add --no-date
+
 # 3.4
 - Ignore m3u files
 - Add --nocue and --nolog options
