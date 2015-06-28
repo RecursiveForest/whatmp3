@@ -1,61 +1,84 @@
 whatmp3 is a small script to create mp3 torrents out of FLACs.
 
-Depends on mktorrent, lame/oggenc/ffmpeg/neroAacEnc+neroAacDec, and metaflac.
+Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc,
+neroAacTag, mp3gain, aacgain, vorbisgain, and sox.
 
-Configuration is handled at the top of the file in the configuration section.
+Configuration is handled either at the top of the file in the configuration
+section, or via shell aliases.
 
 Usage
 -----
 Running `whatmp3` on its own won't do too much. You need to specify the lame or oggenc flags you want to convert with, and the directories you want to convert.
 
-	--320 --V2 --V0 --Q8 --ALAC...
-		encode to 320, V2, V0, or whatever else specified in 'enc_options' in the file
-	--FLAC
-		create torrent for FLAC
-	--help
-		print help message and quit
-	--verbose
-		increase verbosity (default false)
-	--copyother
-		copy other files in flac directory to torrent directory (default true)
-	--output="PATH"
-		specify output directory for torrents
-	--zeropad
-		zeropad tracklists (default true)
-	--passkey="PASSKEY"
-		specify tracker passkey
-	--tracker="TRACKER"
-		specify tracker address to use (default "http://tracker.what.cd:34000")
-	--notorrent
-		do not generate a torrent file (default false)
-	--threads=NUM
-		run NUM encoding threads (default 1)
-	--replaygain
-		enables replaygain (default false); please note replaygain is not allowed on what.cd
-	--dither
-		enables dithering (default false)
-	
-Minimally, you need a passkey, a tracker, and an encoding option to create a 
-working torrent to upload
+Usage: whatmp3 [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC
+
+	--V0 --V2 --320 --Q8 --AAC --FLAC --ALAC ...
+		convert to V0, V2, &c - you can add your own by editing the file
+
+	--version             	show program's version number and exit
+	-h, --help            	show this help message and exit
+	-v, --verbose         	increase verbosity (Default: False)
+	-n, --notorrent       	do not create a torrent after conversion (Default: False)
+	-m, --copyother		copy additional files (Default: True)
+	-p, --passkey PASSKEY	tracker PASSKEY
+	-t, --tracker URL	tracker URL (Default: "http://tracker.what.cd:34000/")
+	-o, --output PATH	set the output PATH
+	-z, --zeropad         	zeropad track numbers (Default: True)
+	-r, --replaygain      	add ReplayGain to new files (Default: False)
+	-d, --dither          	dither FLACs to 16/44 before encoding (Default: False)
+	-c, --original        	create a torrent for the original FLAC
+	--threads THREADS     	set number of threads THREADS (Default: 1)
+	--torrent-dir PATH	set independent torrent output directory
+	--skipgenre		do not insert a genre tag in MP3 files (Default: False)
+	--nodate		do not write the creation date to the .torrent file (Default: False)
+	--nolog			do not copy log files after conversion (Default: False)
+	--nocue			do not copy cue files after conversion (Default: False)
+
+Minimally, you need a passkey, a tracker, and an encoding option to create a working torrent to upload.
+However, `whatmp3` will work without tracker data with the `--notorrent` option.
 
 You need to add your torrent passkey and output directory in order to make the `.torrent` file to upload to What.CD:
 
 	passkey = "YOUR PASSKEY HERE"
 
+Examples
+--------
 This will convert `OSI - Office of Strategic Influence` to V2 and V0:
 
-	whatmp3 --V2 --V0 OSI\ -\ Office\ of\ Strategic\ Influence
+	whatmp3 --V2 --V0 OSI\ -\ Office\ of\ Strategic\ Influence\ \(FLAC\)
+
+The transcoded files will go into "OSI - Office of Strategic Influence (V0)" (or "[...] (V2)") in your `output` directory, which is by default your current directory.
 
 This will convert `Porcupine Tree - Deadwing` and `Porcupine Tree - In Absentia` to 320 CBR, V0, and V2 (the "perfect three"):
 
-	whatmp3 --320 --V2 --V0 Porcupine\ Tree\ -\ Deadwing Porcupine\ Tree\ -\ In\ Absentia
+	whatmp3 --320 --V2 --V0 "Porcupine Tree - Deadwing" "Porcupine Tree - In Absentia"
 
-`.torrent` files will be created in your `output` directory.
+`.torrent` files will be created in `torrent-dir` directory, or by default your `output` directory.
 
-Threading is supported since version 3.0; use the `--threads NUM` option (or set `max_threads`):
+Threading is supported by default. By default `whatmp3` will use as many threads as you have CPU cores.
+To set manually, use the `--threads NUM` option (or set `max_threads`):
 
 	whatmp3 --threads 2 --V2 "Enslaved - Isa"
 
-`whatmp3` also supports a few command line flags as of 2.0, use `--verbose` or `-v` to print extra messages:
+Transcode verbosely to V2 and Q8 in ~/high/seas, zeropad track numbers, dither, apply replaigain, and do not create a torrent:
 	
-	whatmp3 --verbose --V2 Nightingale\ -\ I
+	whatmp3 -vzdrn --output ~/high/seas --Q8 --V2 Nightingale\ -\ I
+
+Bugs
+----
+Entomologists are welcome to submit reports and patches via email, github, or other nefarious methods.
+
+Contributors
+------------
+Primary author and maintainer: Sam Baldwin / shardz <fuhsaz 'at' cryptic 'dot' li>
+
+Initial python port by demonstar55
+
+Patches contributed by:
+* Francis Drake - improved threading
+* Tim Ekl <lithium3141 'at' gmail 'dot' com> - Use os.path.join()
+* Etienne Perot <etienne 'at' perot 'dot' me> - Add --skiggenre, --nodate
+* Michael Rodler <michael 'at' michaelrodler 'dot' at> - Fix lowcase flac/codec substring replacement
+* Justin Duplessis <drfoliberg 'at' gmail 'dot' com> - Set default max thread count intelligently
+
+Countless input and bug reports provided by unlisted and uncredited, but thanked, users.

@@ -37,7 +37,7 @@ dither = 0
 tracker = "http://tracker.what.cd:34000/"
 
 # Specify torrent passkey
-passkey = "satan"
+passkey = "Linus Torvalds disapproves."
 
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = multiprocessing.cpu_count()
@@ -174,7 +174,7 @@ class Transcode(threading.Thread):
 
 def make_torrent(options, target):
 	if options.verbose: print('Creating torrent...')
-	torrent_command = 'mktorrent -p -a %s/announce -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(os.path.join(options.torrent_dir, os.path.basename(target))), escape_quote(target))
+	torrent_command = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s"' % (options.tracker + options.passkey, escape_quote(os.path.join(options.torrent_dir, os.path.basename(target))), escape_quote(target))
 	if options.nodate: torrent_command += ' -d'
 	if options.verbose: print(escape_backtick(torrent_command))
 	os.system(escape_backtick(torrent_command))
@@ -209,9 +209,9 @@ def main():
 	info_text = "Depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, vorbisgain, and sox."
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
 	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
-	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='will not create a torrent after conversion (Default: False)')
-	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='will not copy log files after conversion (Default: False)')
-	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='will not copy cue files after conversion (Default: False)')
+	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='do not create a torrent after conversion (Default: False)')
+	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='do not copy log files after conversion (Default: False)')
+	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='do not copy cue files after conversion (Default: False)')
 	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
 	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
 	parser.add_option('-m', '--copyother',	action='store_true',	dest='copyother',	default=copyother,	help='copy additional files (Default: True)')
