@@ -20,13 +20,13 @@ Usage: whatmp3 [options] [--320 --V2 --Q8 --AAC ...] /path/to/FLAC
 	-v, --verbose         	increase verbosity (Default: False)
 	-n, --notorrent       	do not create a torrent after conversion (Default: False)
 	-m, --copyother		copy additional files (Default: True)
-	-p, --passkey PASSKEY	tracker PASSKEY
-	-t, --tracker URL	tracker URL (Default: "http://tracker.what.cd:34000/")
-	-o, --output PATH	set the output PATH
 	-z, --zeropad         	zeropad track numbers (Default: True)
 	-r, --replaygain      	add ReplayGain to new files (Default: False)
 	-d, --dither          	dither FLACs to 16/44 before encoding (Default: False)
 	-c, --original        	create a torrent for the original FLAC
+	-p, --passkey PASSKEY	tracker PASSKEY
+	-t, --tracker URL	tracker URL (Default: "http://tracker.what.cd:34000/")
+	-o, --output PATH	set the output PATH
 	--threads THREADS     	set number of threads THREADS (Default: 1)
 	--torrent-dir PATH	set independent torrent output directory
 	--skipgenre		do not insert a genre tag in MP3 files (Default: False)

@@ -13,7 +13,7 @@ from optparse import OptionParser
 import threading
 import multiprocessing
 
-VERSION = "3.6"
+VERSION = "3.7"
 
 ### BEGIN CONFIGURATION ###
 
@@ -179,7 +179,7 @@ def make_torrent(options, target):
 	if options.verbose: print(escape_backtick(torrent_command))
 	os.system(escape_backtick(torrent_command))
 
-def copyother(options, flacdir, outdir):
+def copy_other(options, flacdir, outdir):
 	if options.verbose: print('Copying other files...')
 	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 		for name in files:
@@ -210,32 +210,29 @@ def main():
 	parser = OptionParser(usage=usage_text, version="%prog " + VERSION, epilog=info_text)
 	parser.add_option('-v', '--verbose',	action='store_true',	dest='verbose',		default=False,	help='increase verbosity (Default: False)')
 	parser.add_option('-n', '--notorrent',	action='store_true',	dest='notorrent',	default=False,	help='do not create a torrent after conversion (Default: False)')
-	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='do not copy log files after conversion (Default: False)')
-	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='do not copy cue files after conversion (Default: False)')
-	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
-	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
 	parser.add_option('-m', '--copyother',	action='store_true',	dest='copyother',	default=copyother,	help='copy additional files (Default: True)')
-	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
-	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
-	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
-	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=torrent_dir,	help='set independent torrent output directory')
 	parser.add_option('-z', '--zeropad',	action='store_true',	dest='zeropad',		default=zeropad,	help='zeropad track numbers (Default: True)')
 	parser.add_option('-r', '--replaygain',	action='store_true',	dest='replaygain',	default=False,	help='add ReplayGain to new files (Default: False)')
 	parser.add_option('-d', '--dither',	action='store_true',	dest='dither',		default=dither,	help='dither FLACs to 16/44 before encoding (Default: False)')
-	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
 	parser.add_option('-c', '--original',	action='store_true',	dest='original',	default=False,	help='create a torrent for the original FLAC')
+	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
+	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
+	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
+	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
+	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=torrent_dir,	help='set independent torrent output directory')
+	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
+	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
+	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='do not copy log files after conversion (Default: False)')
+	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='do not copy cue files after conversion (Default: False)')
 
 	for enc_opt in enc_options.keys():
 		parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option, help='convert to %s' % (enc_opt))
 
 	(options, flacdirs) = parser.parse_args()
-
 	if len(flacdirs) < 1:
 		parser.error("Incorrect number of arguments")
-
 	if not options.output.endswith('/'):
 		options.output += '/'
-
 	if len(codecs) == 0 and not options.original:
 		print('You need to provide at least one format to transcode to (320, V0, Q8 ...); `whatmp3 --help`')
 		parser.error("Incorrect number of arguments")
@@ -268,7 +265,6 @@ def main():
 				os.makedirs(outdir)
 
 			print('Encoding with ' + codec + ' started...')
-
 			threads = []
 			cv = threading.Condition()
 			for file in flacfiles:
@@ -279,18 +275,14 @@ def main():
 				t=Transcode(file, flacdir, outdir, codec, options, cv)
 				t.start()
 				threads.append(t)
-
 			for t in threads:
 				t.join()
-
 			print('\nEncoding with ' + codec + ' finished.')
 
 			if options.copyother:
-				copyother(options, flacdir, outdir)
-
+				copy_other(options, flacdir, outdir)
 			if options.replaygain:
 				replaygain(options, codec, outdir)
-
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				make_torrent(options, outdir)
 
