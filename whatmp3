@@ -183,6 +183,8 @@ def copy_other(options, flacdir, outdir):
 	if options.verbose: print('Copying other files...')
 	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 		for name in files:
+			if options.ignoredotfiles and fnmatch.fnmatch(name, '.*'):
+				continue
 			if options.nolog and fnmatch.fnmatch(name.lower(), '*.log'):
 				continue
 			if options.nocue and fnmatch.fnmatch(name.lower(), '*.cue'):
@@ -224,6 +226,7 @@ def main():
 	parser.add_option('--nodate',           action='store_true',    dest='nodate',          default=False,  help='do not write the creation date to the .torrent file (Default: False)')
 	parser.add_option('--nolog',		action='store_true',	dest='nolog',		default=False,	help='do not copy log files after conversion (Default: False)')
 	parser.add_option('--nocue',		action='store_true',	dest='nocue',		default=False,	help='do not copy cue files after conversion (Default: False)')
+	parser.add_option('--ignoredotfiles', action='store_true', dest='ignoredotfiles', default=False, help='skip hidden files, beginning with "." (Default: False)')
 
 	for enc_opt in enc_options.keys():
 		parser.add_option("--" + enc_opt, action="callback", callback=add_enc_option, help='convert to %s' % (enc_opt))
@@ -245,8 +248,9 @@ def main():
 
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
-				if fnmatch.fnmatch(name.lower(), '*.flac'):
-					flacfiles.append(os.path.join(dirpath, name))
+				if not options.ignoredotfiles or not fnmatch.fnmatch(name, '.*'):
+					if fnmatch.fnmatch(name.lower(), '*.flac'):
+						flacfiles.append(os.path.join(dirpath, name))
 		if options.original:
 			print('Working with FLAC...')
 			if options.output and options.passkey and options.tracker and not options.notorrent:
