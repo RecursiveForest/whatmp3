@@ -52,7 +52,7 @@ enc_options = {
 	'V2':	{'enc': 'lame',		'ext': '.mp3',	'opts': '-q 0 -V 2 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'Q8':	{'enc': 'oggenc',	'ext': '.ogg',	'opts': '-q 8 --utf8'},
 	'AAC':	{'enc': 'neroAacEnc',	'ext': '.aac',	'opts': '-br 320000'},
-	'ALAC':	{'enc': 'ffmpeg',	'ext': '.alac',	'opts': '-i - -acodec alac'},
+	'ALAC':	{'enc': 'ffmpeg',	'ext': '.alac',	'opts': ''},
 	'FLAC': {'enc': 'flac',		'ext': '.flac',	'opts': '--best'}
 }
 
@@ -74,6 +74,7 @@ encoders = {
 		'ALBUM':	'-l "%(ALBUM)s"',
 		'ARTIST':	'-a "%(ARTIST)s"',
 		'TRACKNUMBER':	'-N "%(TRACKNUMBER)s"',
+
 		'GENRE':	'-G "%(GENRE)s"',
 		'DATE':		'-d "%(DATE)s"',
 		'COMMENT':	'-c "comment=%(COMMENT)s"',
@@ -90,7 +91,17 @@ encoders = {
 		'COMMENT':	'-meta:comment="%(COMMENT)s"',
 		'regain':	'aacgain -q -c "%s"/*.m4a'
 	},
-	'ffmpeg': {},
+	'ffmpeg': {
+		'enc':		'ffmpeg %(opts)s -i - -acodec alac %(tags)s "%(filename)s" 2>&1',
+		'TITLE':	'-metadata title="%(TITLE)s"',
+		'ALBUM':	'-metadata album="%(AULBM)s"',
+		'ARTIST':	'-metadata author="%(ARTIST)s"',
+		'TRACKNUMBER':	'-metadata track="%(TRACKNUMBER)s"',
+		'GENRE':	'-metadata genre="%(GENRE)s"',
+		'DATE':		'-metadata date="%(DATE)s"',
+		'COMMENT':	'-metadata comment="%(COMMENT)s"',
+		'regain':	''
+	},
 	'flac': {
 		'enc':		'flac %(opts)s -s %(tags)s -o "%(filename)s" - 2>&1',
 		'TITLE':	'-T "TITLE=%(TITLE)s"',
