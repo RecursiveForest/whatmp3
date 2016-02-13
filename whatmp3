@@ -230,6 +230,7 @@ def main():
 	parser.add_option('-p', '--passkey',	dest='passkey',		default=passkey,	help='tracker PASSKEY', metavar='PASSKEY')
 	parser.add_option('-t', '--tracker',	dest='tracker',		default=tracker,	help='tracker URL (Default: "http://tracker.what.cd:34000/")', metavar='URL')
 	parser.add_option('-o', '--output',	dest='output',		default=output,		help='set the output PATH', metavar='PATH')
+	parser.add_option('-i', '--ignore',     action='store_true',    dest='ignore',          default=False,  help='ignore top level directories without flacs')
 	parser.add_option('--threads',		type="int",		dest='max_threads',	default=max_threads,	help='set number of threads THREADS (Default: 1)', metavar='THREADS')
 	parser.add_option('--torrent-dir',	dest='torrent_dir',	default=torrent_dir,	help='set independent torrent output directory')
 	parser.add_option('--skipgenre',        action='store_true',    dest='skip_genre',      default=False,  help='do not insert a genre tag in MP3 files (Default: False)')
@@ -259,6 +260,9 @@ def main():
 			for name in files:
 				if fnmatch.fnmatch(name.lower(), '*.flac'):
 					flacfiles.append(os.path.join(dirpath, name))
+		if options.ignore and not flacfiles:
+			print("there are no FLACs in %s, skipping" % (os.path.relpath(flacdir)))
+			continue
 		if options.original:
 			print('Working with FLAC...')
 			if options.output and options.passkey and options.tracker and not options.notorrent:
