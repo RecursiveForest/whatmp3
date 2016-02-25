@@ -59,7 +59,7 @@ enc_options = {
 
 encoders = {
 	'lame':	{
-		'enc':		'lame -S %(opts)s %(tags)s --add-id3v2 - "%(filename)s" 2>&1',
+		'enc':		'lame --silent %(opts)s %(tags)s --add-id3v2 - "%(filename)s" 2>&1',
 		'TITLE':	'--tt "%(TITLE)s"',
 		'ALBUM':	'--tl "%(ALBUM)s"',
 		'ARTIST':	'--ta "%(ARTIST)s"',
@@ -168,7 +168,7 @@ class Transcode(threading.Thread):
 		tagline = tagline % tags
 		if self.options.dither:
 			flac_command = dither_command + ' | ' + flac_command
-		flac_command = 'flac -dc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
+		flac_command = 'flac -sdc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
 		flac_command = flac_command % {
 			'opts': enc_options[self.codec]['opts'],
 			'filename': escape_quote(outname) + enc_options[self.codec]['ext'],
@@ -176,6 +176,7 @@ class Transcode(threading.Thread):
 		}
 		if self.options.verbose:
 			print(escape_backtick(flac_command))
+		print("encoding %s" % escape_quote(os.path.basename(outname)) + enc_options[self.codec]['ext'])
 		os.system(escape_backtick(flac_command))
 
 		self.cv.acquire()
@@ -260,6 +261,7 @@ def main():
 			for name in files:
 				if fnmatch.fnmatch(name.lower(), '*.flac'):
 					flacfiles.append(os.path.join(dirpath, name))
+		flacfiles.sort()
 		if options.ignore and not flacfiles:
 			print("there are no FLACs in %s, skipping" % (os.path.relpath(flacdir)))
 			continue
@@ -280,7 +282,7 @@ def main():
 			if not os.path.exists(outdir):
 				os.makedirs(outdir)
 
-			print('Encoding with ' + codec + ' started...')
+			print('BEGIN ' + codec + ': %s' % os.path.relpath(flacdir))
 			threads = []
 			cv = threading.Condition()
 			for file in flacfiles:
@@ -293,7 +295,6 @@ def main():
 				threads.append(t)
 			for t in threads:
 				t.join()
-			print('\nEncoding with ' + codec + ' finished.')
 
 			if options.copyother:
 				copy_other(options, flacdir, outdir)
@@ -301,6 +302,7 @@ def main():
 				replaygain(options, codec, outdir)
 			if options.output and options.passkey and options.tracker and not options.notorrent:
 				make_torrent(options, outdir)
+			print('END ' + codec + ': %s' % os.path.relpath(flacdir))
 
 		if options.verbose: print('All done with ' + flacdir + ' ...')
 	return 0
