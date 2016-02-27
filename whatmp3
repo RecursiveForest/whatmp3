@@ -7,9 +7,8 @@
 
 import os
 import re
-import fnmatch
+from fnmatch import fnmatch
 import shutil
-from optparse import OptionParser
 import argparse
 import threading
 import multiprocessing
@@ -227,7 +226,9 @@ class Transcode(threading.Thread):
 
 def make_torrent(opts, target):
 	if opts.verbose: print('Creating torrent...')
-	torrent_command = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s"' % (opts.tracker, escape_quote(os.path.join(opts.torrent_dir, os.path.basename(target))), escape_quote(target))
+	torrent_command = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s"' % (
+		opts.tracker, escape_quote(os.path.join(opts.torrent_dir,
+		os.path.basename(target))), escape_quote(target))
 	if opts.nodate: torrent_command += ' -d'
 	if opts.verbose: print(escape_backtick(torrent_command))
 	os.system(escape_backtick(torrent_command))
@@ -236,11 +237,11 @@ def copy_other(opts, flacdir, outdir):
 	if opts.verbose: print('Copying other files...')
 	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 		for name in files:
-			if opts.nolog and fnmatch.fnmatch(name.lower(), '*.log'):
+			if opts.nolog and fnmatch(name.lower(), '*.log'):
 				continue
-			if opts.nocue and fnmatch.fnmatch(name.lower(), '*.cue'):
+			if opts.nocue and fnmatch(name.lower(), '*.cue'):
 				continue
-			if not fnmatch.fnmatch(name.lower(), '*.flac') and not fnmatch.fnmatch(name.lower(), '*.m3u'):
+			if not fnmatch(name.lower(), '*.flac') and not fnmatch(name.lower(), '*.m3u'):
 				d = re.sub(re.escape(flacdir), outdir, dirpath)
 				if not os.path.exists(d):
 					os.makedirs(d)
@@ -251,7 +252,8 @@ def replaygain(opts, codec, outdir):
 	os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
-			os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % os.path.join(dirpath, name)))
+			os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain']
+				% os.path.join(dirpath, name)))
 
 def main():
 	parser = setup_parser()
@@ -259,17 +261,15 @@ def main():
 	if not opts.output.endswith('/'):
 		opts.output += '/'
 	if len(codecs) == 0 and not opts.original:
-		print('You need to provide at least one format to transcode to (320, V0, Q8 ...); `whatmp3 --help`')
-		parser.error("Incorrect number of arguments")
+		parser.error("you must provide at least one format to transcode to")
 		exit()
 	for flacdir in opts.flacdirs:
 		flacdir = os.path.abspath(flacdir)
 		flacfiles = []
 		if not os.path.exists(opts.torrent_dir): os.makedirs(opts.torrent_dir)
-
 		for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 			for name in files:
-				if fnmatch.fnmatch(name.lower(), '*.flac'):
+				if fnmatch(name.lower(), '*.flac'):
 					flacfiles.append(os.path.join(dirpath, name))
 		flacfiles.sort()
 		if opts.ignore and not flacfiles:
