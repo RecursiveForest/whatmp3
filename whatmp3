@@ -216,15 +216,12 @@ class Transcode(threading.Thread):
 		if self.opts.verbose:
 			print(escape_backtick(flac_command))
 		os.system(escape_backtick(flac_command))
-
-		self.cv.acquire()
-		self.cv.notify_all()
-		self.cv.release()
-
+		with self.cv:
+			self.cv.notify_all()
 		return 0
 
 def make_torrent(opts, target):
-	if opts.verbose: print('Creating torrent...')
+	if opts.verbose: print('MAKE: %s.torrent' % os.path.relpath(target))
 	torrent_command = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s"' % (
 		opts.tracker, escape_quote(os.path.join(opts.torrent_dir,
 		os.path.basename(target))), escape_quote(target))
@@ -233,7 +230,7 @@ def make_torrent(opts, target):
 	os.system(escape_backtick(torrent_command))
 
 def copy_other(opts, flacdir, outdir):
-	if opts.verbose: print('Copying other files...')
+	if opts.verbose: print('COPYING other files')
 	for dirpath, dirs, files in os.walk(flacdir, topdown=False):
 		for name in files:
 			if opts.nolog and fnmatch(name.lower(), '*.log'):
@@ -247,7 +244,9 @@ def copy_other(opts, flacdir, outdir):
 				shutil.copy(os.path.join(dirpath, name), d)
 
 def replaygain(opts, codec, outdir):
-	if opts.verbose: print('Applying replay gain...')
+	if opts.verbose:
+		print("APPLYING replaygain")
+		print(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
 	os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
@@ -272,13 +271,13 @@ def main():
 					flacfiles.append(os.path.join(dirpath, name))
 		flacfiles.sort()
 		if opts.ignore and not flacfiles:
-			print("there are no FLACs in %s, skipping" % (os.path.relpath(flacdir)))
+			print("SKIP (no flacs in): %s" % (os.path.relpath(flacdir)))
 			continue
 		if opts.original:
-			print('Working with FLAC...')
+			print('BEGIN ORIGINAL FLAC')
 			if opts.output and opts.tracker and not opts.notorrent:
 				make_torrent(opts, flacdir)
-			print('Finished working with FLAC')
+			print('END ORIGINAL FLAC')
 
 		for codec in codecs:
 			outdir = os.path.basename(flacdir)
@@ -295,11 +294,10 @@ def main():
 			threads = []
 			cv = threading.Condition()
 			for file in flacfiles:
-				cv.acquire()
-				while (threading.activeCount() == max(1, opts.max_threads) + 1):
-					cv.wait()
-				cv.release()
-				t=Transcode(file, flacdir, outdir, codec, opts, cv)
+				with cv:
+					while (threading.active_count() == max(1, opts.max_threads) + 1):
+						cv.wait()
+					t = Transcode(file, flacdir, outdir, codec, opts, cv)
 				t.start()
 				threads.append(t)
 			for t in threads:
