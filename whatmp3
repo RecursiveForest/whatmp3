@@ -7,6 +7,7 @@
 
 import os
 import re
+import sys
 from fnmatch import fnmatch
 import shutil
 import argparse
@@ -131,6 +132,9 @@ def escape_percent(pattern):
 	pattern = re.sub('%', '%%', pattern)
 	return pattern
 
+def failure(r, msg):
+	print("ERROR: %s: %s" % (r, msg), file=sys.stderr)
+
 class EncoderArg(argparse.Action):
 	def __init__(self, option_strings, dest, nargs=None, **kwargs):
 		super(EncoderArg, self).__init__(option_strings, dest, nargs, **kwargs)
@@ -207,15 +211,19 @@ class Transcode(threading.Thread):
 		if self.opts.dither:
 			flac_command = dither_command + ' | ' + flac_command
 		flac_command = 'flac -sdc -- "' + escape_percent(escape_quote(self.file)) + '" | ' + flac_command
-		flac_command = flac_command % {
+		flac_command = escape_backtick(flac_command % {
 			'opts': enc_options[self.codec]['opts'],
 			'filename': escape_quote(outname) + enc_options[self.codec]['ext'],
 			'tags': tagline
-		}
-		print("encoding %s" % escape_quote(os.path.basename(outname)) + enc_options[self.codec]['ext'])
+		})
+		outname = escape_quote(os.path.basename(outname)) + enc_options[self.codec]['ext']
+		print("encoding %s" % outname)
 		if self.opts.verbose:
-			print(escape_backtick(flac_command))
-		os.system(escape_backtick(flac_command))
+			print(flac_command)
+		r = os.system(flac_command)
+		if r:
+			failure(r, "error encoding %s" % outname)
+			os.system('touch "%s/FAILURE"' % escape_backtick(self.mp3_dir))
 		with self.cv:
 			self.cv.notify_all()
 		return 0
@@ -227,7 +235,8 @@ def make_torrent(opts, target):
 		os.path.basename(target))), escape_quote(target))
 	if opts.nodate: torrent_command += ' -d'
 	if opts.verbose: print(escape_backtick(torrent_command))
-	os.system(escape_backtick(torrent_command))
+	r = os.system(escape_backtick(torrent_command))
+	if r: failure(r, torrent_command)
 
 def copy_other(opts, flacdir, outdir):
 	if opts.verbose: print('COPYING other files')
@@ -247,11 +256,13 @@ def replaygain(opts, codec, outdir):
 	if opts.verbose:
 		print("APPLYING replaygain")
 		print(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
-	os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
+	r = os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain'] % outdir))
+	if r: failure(r, "replaygain")
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
-			os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain']
+			r = os.system(escape_backtick(encoders[enc_options[codec]['enc']]['regain']
 				% os.path.join(dirpath, name)))
+			if r: failure(r, "replaygain")
 
 def main():
 	parser = setup_parser()
