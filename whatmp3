@@ -156,14 +156,14 @@ def failure(r, msg):
 
 def make_torrent(opts, target):
 	if opts.verbose: print('MAKE: %s.torrent' % os.path.relpath(target))
-	torrent_command = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s" 2>&1' % (
+	torrent_cmd = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s" 2>&1' % (
 		opts.tracker, escape_quote(os.path.join(opts.torrent_dir,
 		os.path.basename(target))), escape_quote(target))
-	if opts.nodate: torrent_command += ' -d'
-	if not opts.verbose: torrent_command += ' >/dev/null'
-	if opts.verbose: print(escape_backtick(torrent_command))
-	r = system(torrent_command)
-	if r: failure(r, torrent_command)
+	if opts.nodate: torrent_cmd += ' -d'
+	if not opts.verbose: torrent_cmd += ' >/dev/null'
+	if opts.verbose: print(escape_backtick(torrent_cmd))
+	r = system(torrent_cmd)
+	if r: failure(r, torrent_cmd)
 
 def replaygain(opts, codec, outdir):
 	if opts.verbose:
