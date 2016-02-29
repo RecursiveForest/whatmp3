@@ -162,19 +162,19 @@ def make_torrent(opts, target):
 	if opts.nodate: torrent_command += ' -d'
 	if not opts.verbose: torrent_command += ' >/dev/null'
 	if opts.verbose: print(escape_backtick(torrent_command))
-	r = os.system(escape_backtick(torrent_command))
+	r = system(torrent_command)
 	if r: failure(r, torrent_command)
 
 def replaygain(opts, codec, outdir):
 	if opts.verbose:
 		print("APPLYING replaygain")
 		print(escape_backtick(encoders[enc_opts[codec]['enc']]['regain'] % outdir))
-	r = os.system(escape_backtick(encoders[enc_opts[codec]['enc']]['regain'] % outdir))
+	r = system(encoders[enc_opts[codec]['enc']]['regain'] % outdir)
 	if r: failure(r, "replaygain")
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
-			r = os.system(escape_backtick(encoders[enc_opts[codec]['enc']]['regain']
-				% os.path.join(dirpath, name)))
+			r = system(encoders[enc_opts[codec]['enc']]['regain']
+				% os.path.join(dirpath, name))
 			if r: failure(r, "replaygain")
 
 def setup_parser():
@@ -213,6 +213,9 @@ def setup_parser():
 	p.add_argument('flacdirs', nargs='+', metavar='flacdir', help='directories to transcode')
 	return p
 
+def system(cmd):
+	return os.system(escape_backtick(cmd))
+
 def transcode(f, flacdir, mp3_dir, codec, opts):
 	tags = {}
 	for tag in copy_tags:
@@ -237,19 +240,19 @@ def transcode(f, flacdir, mp3_dir, codec, opts):
 	if opts.dither:
 		flac_cmd = dither_cmd + ' | ' + flac_cmd
 	flac_cmd = 'flac -sdc -- "' + escape_percent(escape_quote(f)) + '" | ' + flac_cmd
-	flac_cmd = escape_backtick(flac_cmd % {
+	flac_cmd = flac_cmd % {
 		'opts': enc_opts[codec]['opts'],
 		'filename': escape_quote(outname) + enc_opts[codec]['ext'],
 		'tags': tagline
-	})
+	}
 	outname = escape_quote(os.path.basename(outname)) + enc_opts[codec]['ext']
 	if not opts.silent: print("encoding %s" % outname)
 	if opts.verbose:
 		print(flac_cmd)
-	r = os.system(flac_cmd)
+	r = system(flac_cmd)
 	if r:
 		failure(r, "error encoding %s" % outname)
-		os.system('touch "%s/FAILURE"' % escape_backtick(mp3_dir))
+		system('touch "%s/FAILURE"' % mp3_dir)
 	return 0
 
 class Transcode(threading.Thread):
