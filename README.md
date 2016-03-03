@@ -26,7 +26,7 @@ detected. This can be overridden with `--threads`.
 
 torrents are created with the `-p` flag.
 
-see `whatmp3 -h` or `man whatmp3` for more information
+see `whatmp3 -h` or `man whatmp3` for more information.
 
 ## configuration
 
@@ -34,7 +34,7 @@ whatmp3 can be completely configured with the command line options, but
 default options can be changed by editing the file itself.
 
 changes to the script itself are required to support changes to or new
-audio formats, but knowledge of python is not required
+audio formats, but knowledge of python is not required.
 
 ## example
 
