@@ -128,6 +128,8 @@ def copy_other(opts, flacdir, outdir):
 				continue
 			if not fnmatch(name.lower(), '*.flac') and not fnmatch(name.lower(), '*.m3u'):
 				d = re.sub(re.escape(flacdir), outdir, dirpath)
+				if os.path.exists(os.path.join(d, name)) and not opts.overwrite:
+					continue
 				if not os.path.exists(d):
 					os.makedirs(d)
 				shutil.copy(os.path.join(dirpath, name), d)
@@ -195,6 +197,7 @@ def setup_parser():
 		[['-D', '--nodate'],     False,     'do not write the creation date to the .torrent file'],
 		[['-L', '--nolog'],      False,     'do not copy log files after conversion'],
 		[['-C', '--nocue'],      False,     'do not copy cue files after conversion'],
+		[['-w', '--overwrite'],  False,     'overwrite files in output dir'],
 		[['-d', '--dither'],     dither,    'dither FLACs to 16/44 before encoding'],
 		[['-m', '--copyother'],  copyother, 'copy additional files (def: true)'],
 		[['-z', '--zeropad'],    zeropad,   'zeropad tracknumbers (def: true)'],
@@ -231,7 +234,10 @@ def transcode(f, flacdir, mp3_dir, codec, opts):
 	outname = re.sub(re.compile('\.flac$', re.IGNORECASE), '', outname)
 	if not os.path.exists(os.path.dirname(outname)):
 		os.makedirs(os.path.dirname(outname))
-
+	outname += enc_opts[codec]['ext']
+	if os.path.exists(outname) and not opts.overwrite:
+		print("WARN: file %s already exists" % (os.path.relpath(outname)), file=sys.stderr)
+		return 1
 	flac_cmd = encoders[enc_opts[codec]['enc']]['enc']
 	tagline = ''
 	for tag in tags:
@@ -242,10 +248,10 @@ def transcode(f, flacdir, mp3_dir, codec, opts):
 	flac_cmd = 'flac -sdc -- "' + escape_percent(escape_quote(f)) + '" | ' + flac_cmd
 	flac_cmd = flac_cmd % {
 		'opts': enc_opts[codec]['opts'],
-		'filename': escape_quote(outname) + enc_opts[codec]['ext'],
+		'filename': escape_quote(outname),
 		'tags': tagline
 	}
-	outname = escape_quote(os.path.basename(outname)) + enc_opts[codec]['ext']
+	outname = escape_quote(os.path.basename(outname))
 	if not opts.silent: print("encoding %s" % outname)
 	if opts.verbose:
 		print(flac_cmd)
