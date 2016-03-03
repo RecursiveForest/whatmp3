@@ -17,7 +17,7 @@ VERSION = "3.7"
 
 ### BEGIN CONFIGURATION ###
 
-# Output folder unless specified: ("/home/user/Desktop/")
+# Output folder unless specified
 #output = os.path.join(os.environ['HOME'], "Desktop/")
 output = os.getcwd()
 
