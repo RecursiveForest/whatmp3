@@ -1,3 +1,16 @@
+# 3.7
+- beautify output
+- improve error reporting (`touch dir/FAILURE')
+- update documentation
+- add Makefile
+- add manpage
+- add --silent
+- add --ignore
+- add --V8
+- switch to os.cpu_count() and do not import multiprocessing
+- switch to argparse
+- add single character arguments for all options
+
 # 3.6
 - Generalise --skipgenre to work on all default encoders
 - Generalise --replaygain similarly

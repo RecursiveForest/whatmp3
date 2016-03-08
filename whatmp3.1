@@ -61,6 +61,11 @@ are optionally required.
 whatmp3 will not overwrite any files in output directories unless passed
 .BR -w
 .P
+whatmp3 will
+.B touch
+.B FAILURE
+in each top level dir in which a critical error has occured while transcoding.
+.P
 .SH OPTIONS
 .TP
 .BR \-\-version
@@ -122,7 +127,7 @@ places transcode file directories in
 places torrent files in
 .I dir
 .TP
-.BI \-\-threads\  threads \fR,\ \fB\-\-threads\  threads
+.BI \-T\  threads \fR,\ \fB\-\-threads\  threads
 set number of transcoding threads to
 .I threads
 ; default is defined by os.cpu_count()

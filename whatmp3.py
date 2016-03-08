@@ -209,7 +209,7 @@ def setup_parser():
 		[['-O', '--torrent-dir'], torrent_dir, 'DIR', 'set independent torrent output dir'],
 	]:
 		p.add_argument(*a[0], **{'default': a[1], 'action': 'store', 'metavar': a[2], 'help': a[3]})
-	p.add_argument('--threads', default=max_threads, action='store', dest='max_threads',
+	p.add_argument('-T', '--threads', default=max_threads, action='store', dest='max_threads',
 		type=int, help='set number of threads THREADS (default: 1)', metavar='THREADS')
 	for enc_opt in enc_opts.keys():
 		p.add_argument("--" + enc_opt, action=EncoderArg, nargs=0, help='convert to %s' % (enc_opt))
