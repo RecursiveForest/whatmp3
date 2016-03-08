@@ -13,18 +13,19 @@ whatmp3 requires `flac`, `metaflac`, at least one kind of encoder (eg
 `mktorrent` and replaygain tools (eg `vorbisgain`) are optionally
 required.
 
-## installing
+## installation
 
-To install from source if not available in your package manager:
+edit `config.mk` to match your local setup  if required, then run
+(as root if necessary):
 
-	python setup.py install
+	make clean install
 
 ## usage
 
 whatmp3 will spawn a simultaneous transcoding process for each cpu core
 detected. This can be overridden with `--threads`.
 
-torrents are created with the `-p` flag.
+torrents are created with the `-p` flag, indicating a private tracker.
 
 see `whatmp3 -h` or `man whatmp3` for more information.
 

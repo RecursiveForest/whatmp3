@@ -1,0 +1,178 @@
+.TH WHATMP3 1 whatmp3\-VERSION
+.SH NAME
+whatmp3 \- transcode audio files and create torrents
+.SH SYNOPSIS
+.B whatmp3
+.RB [ \-v ]
+.RB [ \-h ]
+.RB [ \-\-version ]
+.RB [ \-n ]
+.RB [ \-r ]
+.RB [ \-c ]
+.RB [ \-i ]
+.RB [ \-s ]
+.RB [ \-S ]
+.RB [ \-D ]
+.RB [ \-L ]
+.RB [ \-C ]
+.RB [ \-w ]
+.RB [ \-d ]
+.RB [ \-m ]
+.RB [ \-z ]
+.RB [ \-t
+.IR URL ]
+.RB [ \-o
+.IR DIR ]
+.RB [ \-O
+.IR DIR ]
+.RB [ \-\-threads
+.IR THREADS ]
+.RB [ \-\-AAC ]
+.RB [ \-\-V8 ]
+.RB [ \-\-V0 ]
+.RB [ \-\-ALAC ]
+.RB [ \-\-V2 ]
+.RB [ \-\-Q8 ]
+.RB [ \-\-FLAC ]
+.RB [ \-\-320 ]
+.IR flacdir\ [ flacdir\ ... ]
+.SH DESCRIPTION
+whatmp3 transcodes audio files and creates torrents for them.
+.P
+whatmp3 takes a list of directories containing FLAC files and
+a list of formats to transcode to. For each top level directory passed,
+a new directory containing the transcoded audio files and optionally
+a torrent (with 
+.BR mktorrent )
+are created.
+.P
+whatmp3 requires 
+.BR flac ,
+.BR metaflac ,
+at least one kind of encoder (eg
+.BR lame ,
+.BR oggenc ).
+.P
+.BR mktorrent
+and replaygain tools (eg
+.BR vorbisgain )
+are optionally required.
+.P
+whatmp3 will not overwrite any files in output directories unless passed
+.BR -w
+.P
+.SH OPTIONS
+.TP
+.BR \-\-version
+prints version information to standard output, then exits.
+.TP
+.BR \-v \fR,\ \fB\-\-verbose
+prints extra information to screen
+.TP
+.BR \-n \fR,\ \fB\-\-notorrent
+does not create a torrent even if a tracker announce url is provided
+.TP
+.BR \-r \fR,\ \fB\-\-replaygain
+applies replaygain to transcoded audio files
+.TP
+.BR \-c \fR,\ \fB\-\-original
+creates torrents for the original flac directories
+.TP
+.BR \-i \fR,\ \fB\-\-ignore
+ignores top level directories that do not contain flac files
+.TP
+.BR \-s \fR,\ \fB\-\-silent
+prints nothing to stdout
+.TP
+.BR \-S \fR,\ \fB\-\-skipgenre
+skips adding the genre tag to output files
+.TP
+.BR \-D \fR,\ \fB\-\-nodate
+does not write the date of creation to torrent files
+.TP
+.BR \-L \fR,\ \fB\-\-nolog
+does not copy *.log files to output directories
+.TP
+.BR \-C \fR,\ \fB\-\-nocue
+does not copy *.cue files to output directories
+.TP
+.BR \-w \fR,\ \fB\-\-overwrite
+overwrites files in output directories
+.TP
+.BR \-d \fR,\ \fB\-\-dither
+dithers flacs to 16 bit / 44hz with
+.BR sox
+before transcoding
+.TP
+.BR \-m \fR,\ \fB\-\-copyother
+copies non-audio files to output directories
+.TP
+.BR \-z \fR,\ \fB\-\-zeropad
+zeropads tracknumber tags of transcoded files
+.TP
+.BI \-t\  tracker \fR,\ \fB\-\-tracker\  tracker
+sets torrent tracker announce url to
+.I tracker
+.TP
+.BI \-o\  dir \fR,\ \fB\-\-output\  dir 
+places transcode file directories in
+.I dir
+.TP
+.BI \-O\  dir \fR,\ \fB\-\-torrent\-dir\  dir
+places torrent files in
+.I dir
+.TP
+.BI \-\-threads\  threads \fR,\ \fB\-\-threads\  threads
+set number of transcoding threads to
+.I threads
+; default is defined by os.cpu_count()
+.SH USAGE
+whatmp3 requires a list of formats to transcode to (eg
+.BR \-\-Q8 )
+and a list of directories containing .flac files to transcode from.
+.PP
+If a tracker is provided with
+.B \-\-tracker
+.I tracker
+a torrent will be created with
+.BR mktorrent
+.BR \-p
+.BI \-a\  tracker
+for each transcoded top level directory.
+.PP
+whatmp3 will replace the first occurence of
+.BR FLAC
+with the encoder tag (eg
+.BR Q8 )
+in the top level dirname.
+.SH EXAMPLES
+.PP
+create directories 
+.B Svartrit - I (Q8)
+, etc in 
+.B ~/tor
+containing ogg vorbis Q8 and mp3 V0 transcodes with zeropadded tracknumbers and
+replaygain applied, and torrents 
+.B Svartrit - I (Q8).torrent
+, etc in
+.B ~/tor
+with the specified announce URL:
+
+.nf
+	whatmp3 -rz -o ~/tor -t "http://my.tracker/announce" --Q8 --V0 "Svartrit - I" "Svartrit - II"
+.fi
+.SH CONFIGURATION
+Configuration is handled by editing the source file to either add or change encoder options, and
+to change defaults of command flags. Later releases may add support for a configuration file.
+.SH SEE ALSO
+.BR mktorrent (1),
+.BR flac (1),
+.BR metaflac (1),
+.BR oggenc (1),
+.BR lame (1),
+.BR mp3gain (1),
+.BR vorbisgain (1),
+.BR sox (1)
+.SH BUGS
+whatmp3 has been known to choke on filenames containing certain characters, such as
+.BR $ .
