@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ##############################################################
 # whatmp3 - Convert FLAC to mp3, create what.cd torrent.

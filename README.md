@@ -13,12 +13,20 @@ whatmp3 requires `flac`, `metaflac`, at least one kind of encoder (eg
 `mktorrent` and replaygain tools (eg `vorbisgain`) are optionally
 required.
 
+whatmp3 will not overwrite any files in output directories unless
+passed -w.
+
+whatmp3 will `touch FALIURE' in each top level dir in which a
+critical error has occurred while transcoding.
+
 ## installation
 
 edit `config.mk` to match your local setup  if required, then run
 (as root if necessary):
 
 	make clean install
+
+gmake is required on systems with bsdmake installed by default
 
 ## usage
 
