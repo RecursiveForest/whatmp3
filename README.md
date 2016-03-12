@@ -16,7 +16,7 @@ required.
 whatmp3 will not overwrite any files in output directories unless
 passed -w.
 
-whatmp3 will `touch FALIURE' in each top level dir in which a
+whatmp3 will `touch FAILURE' in each top level dir in which a
 critical error has occurred while transcoding.
 
 ## installation
