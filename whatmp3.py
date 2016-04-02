@@ -158,7 +158,7 @@ def failure(r, msg):
 
 def make_torrent(opts, target):
 	if opts.verbose: print('MAKE: %s.torrent' % os.path.relpath(target))
-	torrent_cmd = 'mktorrent -p -a "%s/announce" -o "%s.torrent" "%s" 2>&1' % (
+	torrent_cmd = 'mktorrent -p -a "%s" -o "%s.torrent" "%s" 2>&1' % (
 		opts.tracker, escape_quote(os.path.join(opts.torrent_dir,
 		os.path.basename(target))), escape_quote(target))
 	if opts.nodate: torrent_cmd += ' -d'
