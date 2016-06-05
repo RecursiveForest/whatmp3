@@ -12,6 +12,7 @@ from fnmatch import fnmatch
 import shutil
 import argparse
 import threading
+import multiprocessing
 
 VERSION = "3.7"
 
@@ -37,7 +38,7 @@ dither = 0
 tracker = None
 
 # Max number of threads (ex: Normal: 1, Dual-core = 2, Hyperthreaded Dual-core = 4)
-max_threads = os.cpu_count()
+max_threads = multiprocessing.cpu_count()
 
 # Tags to copy (note: changing/adding to these requires changing/adding values in/to 'encoders' below)
 copy_tags = ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DATE')
