@@ -92,7 +92,7 @@ encoders = {
 	'ffmpeg': {
 		'enc':         'ffmpeg %(opts)s -i - -acodec alac %(tags)s "%(filename)s" 2>&1',
 		'TITLE':       '-metadata title="%(TITLE)s"',
-		'ALBUM':       '-metadata album="%(AULBM)s"',
+		'ALBUM':       '-metadata album="%(ALBUM)s"',
 		'ARTIST':      '-metadata author="%(ARTIST)s"',
 		'TRACKNUMBER': '-metadata track="%(TRACKNUMBER)s"',
 		'GENRE':       '-metadata genre="%(GENRE)s"',
