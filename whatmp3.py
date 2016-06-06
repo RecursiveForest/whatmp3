@@ -127,6 +127,8 @@ def copy_other(opts, flacdir, outdir):
 				continue
 			if opts.nocue and fnmatch(name.lower(), '*.cue'):
 				continue
+			if opts.nodots and fnmatch(name.lower(), '^.'):
+				continue
 			if not fnmatch(name.lower(), '*.flac') and not fnmatch(name.lower(), '*.m3u'):
 				d = re.sub(re.escape(flacdir), outdir, dirpath)
 				if os.path.exists(os.path.join(d, name)) and not opts.overwrite:
@@ -198,6 +200,7 @@ def setup_parser():
 		[['-D', '--nodate'],     False,     'do not write the creation date to the .torrent file'],
 		[['-L', '--nolog'],      False,     'do not copy log files after conversion'],
 		[['-C', '--nocue'],      False,     'do not copy cue files after conversion'],
+		[['-H', '--nodots'],     False,     'do not copy dot/hidden files after conversion'],
 		[['-w', '--overwrite'],  False,     'overwrite files in output dir'],
 		[['-d', '--dither'],     dither,    'dither FLACs to 16/44 before encoding'],
 		[['-m', '--copyother'],  copyother, 'copy additional files (def: true)'],
