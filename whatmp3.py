@@ -220,7 +220,7 @@ def setup_parser():
 def system(cmd):
 	return os.system(escape_backtick(cmd))
 
-def transcode(f, flacdir, mp3_dir, codec, opts):
+def transcode(f, flacdir, mp3_dir, codec, opts, lock):
 	tags = {}
 	for tag in copy_tags:
 		tagcmd = 'metaflac --show-tag=' + escape_quote(tag) + ' "' + escape_quote(f) + '"'
@@ -233,8 +233,9 @@ def transcode(f, flacdir, mp3_dir, codec, opts):
 
 	outname = re.sub(re.escape(flacdir), mp3_dir, f)
 	outname = re.sub(re.compile('\.flac$', re.IGNORECASE), '', outname)
-	if not os.path.exists(os.path.dirname(outname)):
-		os.makedirs(os.path.dirname(outname))
+	with lock:
+		if not os.path.exists(os.path.dirname(outname)):
+			os.makedirs(os.path.dirname(outname))
 	outname += enc_opts[codec]['ext']
 	if os.path.exists(outname) and not opts.overwrite:
 		print("WARN: file %s already exists" % (os.path.relpath(outname)), file=sys.stderr)
@@ -263,17 +264,18 @@ def transcode(f, flacdir, mp3_dir, codec, opts):
 	return 0
 
 class Transcode(threading.Thread):
-	def __init__(self, file, flacdir, mp3_dir, codec, opts, cv):
+	def __init__(self, file, flacdir, mp3_dir, codec, opts, lock, cv):
 		threading.Thread.__init__(self)
 		self.file = file
 		self.flacdir = flacdir
 		self.mp3_dir = mp3_dir
 		self.codec = codec
 		self.opts = opts
+		self.lock = lock
 		self.cv = cv
 
 	def run(self):
-		r = transcode(self.file, self.flacdir, self.mp3_dir, self.codec, self.opts)
+		r = transcode(self.file, self.flacdir, self.mp3_dir, self.codec, self.opts, self.lock)
 		with self.cv:
 			self.cv.notify_all()
 		return r
@@ -318,11 +320,12 @@ def main():
 			if not opts.silent: print('BEGIN ' + codec + ': %s' % os.path.relpath(flacdir))
 			threads = []
 			cv = threading.Condition()
+			lock = threading.Lock()
 			for f in flacfiles:
 				with cv:
 					while (threading.active_count() == max(1, opts.max_threads) + 1):
 						cv.wait()
-					t = Transcode(f, flacdir, outdir, codec, opts, cv)
+					t = Transcode(f, flacdir, outdir, codec, opts, lock, cv)
 				t.start()
 				threads.append(t)
 			for t in threads:
