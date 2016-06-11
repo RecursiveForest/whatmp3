@@ -251,7 +251,7 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
 		'filename': escape_quote(outname),
 		'tags': tagline
 	}
-	outname = escape_quote(os.path.basename(outname))
+	outname = os.path.basename(outname)
 	if not opts.silent: print("encoding %s" % outname)
 	if opts.verbose:
 		print(flac_cmd)
