@@ -169,7 +169,7 @@ def replaygain(opts, codec, outdir):
 	if opts.verbose:
 		print("APPLYING replaygain")
 		print(encoders[enc_opts[codec]['enc']]['regain'] % outdir)
-	r = system(encoders[enc_opts[codec]['enc']]['regain'] % outdir)
+	r = system(encoders[enc_opts[codec]['enc']]['regain'] % escape_quote(outdir))
 	if r: failure(r, "replaygain")
 	for dirpath, dirs, files in os.walk(outdir, topdown=False):
 		for name in dirs:
