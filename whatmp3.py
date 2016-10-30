@@ -51,7 +51,7 @@ enc_opts = {
 	'V8':	{'enc': 'lame',	      'ext': '.mp3',  'opts': '-q 0 -V 8 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'Q8':	{'enc': 'oggenc',     'ext': '.ogg',  'opts': '-q 8 --utf8'},
 	'AAC':	{'enc': 'neroAacEnc', 'ext': '.aac',  'opts': '-br 320000'},
-	'ALAC':	{'enc': 'ffmpeg',     'ext': '.alac', 'opts': ''},
+	'ALAC':	{'enc': 'ffmpeg',     'ext': '.m4a', 'opts': ''},
 	'FLAC': {'enc': 'flac',       'ext': '.flac', 'opts': '--best'}
 }
 
@@ -87,7 +87,7 @@ encoders = {
 		'GENRE':       "-meta:genre='%(GENRE)s'",
 		'DATE':        "-meta:year='%(DATE)s'",
 		'COMMENT':     "-meta:comment='%(COMMENT)s'",
-		'regain':      "aacgain -q -c '%s'/*.m4a"
+		'regain':      "aacgain -q -c '%s'/*.aac"
 	},
 	'ffmpeg': {
 		'enc':         "ffmpeg %(opts)s -i - -acodec alac %(tags)s '%(filename)s' 2>&1",
