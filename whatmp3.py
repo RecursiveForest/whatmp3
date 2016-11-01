@@ -13,6 +13,7 @@ import shutil
 import argparse
 import threading
 import multiprocessing
+import tempfile
 
 VERSION = "3.7"
 
@@ -34,6 +35,9 @@ zeropad = 1
 # Do you want to dither FLACs to 16/44 before encoding?
 dither = 0
 
+# Do you want to copy embedded album art?
+artwork = 1
+
 # Specify tracker announce URL
 tracker = None
 
@@ -45,52 +49,53 @@ copy_tags = ('TITLE', 'ALBUM', 'ARTIST', 'TRACKNUMBER', 'GENRE', 'COMMENT', 'DAT
 
 # Default encoding options
 enc_opts = {
-	'320':	{'enc': 'lame',       'ext': '.mp3',  'opts': '-q 0 -b 320 --ignore-tag-errors --noreplaygain'},
+	'320':	{'enc': 'lame',	      'ext': '.mp3',  'opts': '-q 0 -b 320 --ignore-tag-errors --noreplaygain'},
 	'V0':	{'enc': 'lame',	      'ext': '.mp3',  'opts': '-q 0 -V 0 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'V2':	{'enc': 'lame',	      'ext': '.mp3',  'opts': '-q 0 -V 2 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'V8':	{'enc': 'lame',	      'ext': '.mp3',  'opts': '-q 0 -V 8 --vbr-new --ignore-tag-errors --noreplaygain'},
 	'Q8':	{'enc': 'oggenc',     'ext': '.ogg',  'opts': '-q 8 --utf8'},
 	'AAC':	{'enc': 'neroAacEnc', 'ext': '.aac',  'opts': '-br 320000'},
 	'ALAC':	{'enc': 'ffmpeg',     'ext': '.alac', 'opts': ''},
-	'FLAC': {'enc': 'flac',       'ext': '.flac', 'opts': '--best'}
+	'FLAC': {'enc': 'flac',	      'ext': '.flac', 'opts': '--best'}
 }
 
 encoders = {
 	'lame':	{
-		'enc':         "lame --silent %(opts)s %(tags)s --add-id3v2 - '%(filename)s' 2>&1",
+		'enc':	       "lame --silent %(opts)s %(tags)s --add-id3v2 - '%(filename)s' 2>&1",
 		'TITLE':       "--tt '%(TITLE)s'",
 		'ALBUM':       "--tl '%(ALBUM)s'",
 		'ARTIST':      "--ta '%(ARTIST)s'",
 		'TRACKNUMBER': "--tn '%(TRACKNUMBER)s'",
 		'GENRE':       "--tg '%(GENRE)s'",
-		'DATE':        "--ty '%(DATE)s'",
+		'DATE':	       "--ty '%(DATE)s'",
 		'COMMENT':     "--tc '%(COMMENT)s'",
+		'ARTWORK':     "--ti '%(ARTWORK)s'",
 		'regain':      "mp3gain -q -c -s i '%s'/*.mp3"
 	},
 	'oggenc': {
-		'enc':         "oggenc -Q %(opts)s %(tags)s -o '%(filename)s' - 2>&1",
+		'enc':	       "oggenc -Q %(opts)s %(tags)s -o '%(filename)s' - 2>&1",
 		'TITLE':       "-t '%(TITLE)s'",
 		'ALBUM':       "-l '%(ALBUM)s'",
 		'ARTIST':      "-a '%(ARTIST)s'",
 		'TRACKNUMBER': "-N '%(TRACKNUMBER)s'",
 		'GENRE':       "-G '%(GENRE)s'",
-		'DATE':        "-d '%(DATE)s'",
+		'DATE':	       "-d '%(DATE)s'",
 		'COMMENT':     "-c 'comment=%(COMMENT)s'",
 		'regain':      "vorbisgain -qafrs '%s'/*.ogg"
 	},
 	'neroAacEnc': {
-		'enc':         "neroAacEnc %(opts)s -if - -of '%(filename)s' 2>&1 && neroAacTag %(tags)s",
+		'enc':	       "neroAacEnc %(opts)s -if - -of '%(filename)s' 2>&1 && neroAacTag %(tags)s",
 		'TITLE':       "-meta:title='%(TITLE)s'",
 		'ALBUM':       "-meta:album='%(ALBUM)s'",
 		'ARTIST':      "-meta:artist='%(ARTIST)s'",
 		'TRACKNUMBER': "-meta:track='%(TRACKNUMBER)s'",
 		'GENRE':       "-meta:genre='%(GENRE)s'",
-		'DATE':        "-meta:year='%(DATE)s'",
+		'DATE':	       "-meta:year='%(DATE)s'",
 		'COMMENT':     "-meta:comment='%(COMMENT)s'",
 		'regain':      "aacgain -q -c '%s'/*.m4a"
 	},
 	'ffmpeg': {
-		'enc':         "ffmpeg %(opts)s -i - -acodec alac %(tags)s '%(filename)s' 2>&1",
+		'enc':	       "ffmpeg %(opts)s -i - -acodec alac %(tags)s '%(filename)s' 2>&1",
 		'TITLE':       "-metadata title='%(TITLE)s'",
 		'ALBUM':       "-metadata album='%(ALBUM)s'",
 		'ARTIST':      "-metadata author='%(ARTIST)s'",
@@ -101,14 +106,15 @@ encoders = {
 		'regain':      ""
 	},
 	'flac': {
-		'enc':         "flac %(opts)s -s %(tags)s -o '%(filename)s' - 2>&1",
+		'enc':	       "flac %(opts)s -s %(tags)s -o '%(filename)s' - 2>&1",
 		'TITLE':       "-T 'TITLE=%(TITLE)s'",
 		'ALBUM':       "-T 'ALBUM=%(ALBUM)s'",
 		'ARTIST':      "-T 'ARTIST=%(ARTIST)s'",
 		'TRACKNUMBER': "-T 'TRACKNUMBER=%(TRACKNUMBER)s'",
 		'GENRE':       "-T 'GENRE=%(GENRE)s'",
-		'DATE':        "-T 'DATE=%(DATE)s'",
+		'DATE':	       "-T 'DATE=%(DATE)s'",
 		'COMMENT':     "-T 'COMMENT=%(COMMENT)s'",
+		'ARTWORK':     "--picture='%(ARTWORK)'",
 		'regain':      "metaflac --add-replay-gain '%s'/*.flac"
 	}
 }
@@ -185,26 +191,27 @@ def setup_parser():
 		neroAacTag, mp3gain, aacgain, vorbisgain, and sox""")
 	p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 	for a in [
-		[['-v', '--verbose'],    False,     'increase verbosity'],
-		[['-n', '--notorrent'],  False,     'do not create a torrent after conversion'],
-		[['-r', '--replaygain'], False,     'add ReplayGain to new files'],
-		[['-c', '--original'],   False,     'create a torrent for the original FLAC'],
-		[['-i', '--ignore'],     False,     'ignore top level directories without flacs'],
-		[['-s', '--silent'],     False,     'do not write to stdout'],
-		[['-S', '--skipgenre'],  False,     'do not insert a genre tag in MP3 files'],
-		[['-D', '--nodate'],     False,     'do not write the creation date to the .torrent file'],
-		[['-L', '--nolog'],      False,     'do not copy log files after conversion'],
-		[['-C', '--nocue'],      False,     'do not copy cue files after conversion'],
-		[['-H', '--nodots'],     False,     'do not copy dot/hidden files after conversion'],
-		[['-w', '--overwrite'],  False,     'overwrite files in output dir'],
-		[['-d', '--dither'],     dither,    'dither FLACs to 16/44 before encoding'],
-		[['-m', '--copyother'],  copyother, 'copy additional files (def: true)'],
-		[['-z', '--zeropad'],    zeropad,   'zeropad tracknumbers (def: true)'],
+		[['-v', '--verbose'],	 False,	    'increase verbosity'],
+		[['-n', '--notorrent'],	 False,	    'do not create a torrent after conversion'],
+		[['-r', '--replaygain'], False,	    'add ReplayGain to new files'],
+		[['-c', '--original'],	 False,	    'create a torrent for the original FLAC'],
+		[['-i', '--ignore'],	 False,	    'ignore top level directories without flacs'],
+		[['-s', '--silent'],	 False,	    'do not write to stdout'],
+		[['-S', '--skipgenre'],	 False,	    'do not insert a genre tag in MP3 files'],
+		[['-D', '--nodate'],	 False,	    'do not write the creation date to the .torrent file'],
+		[['-L', '--nolog'],	 False,	    'do not copy log files after conversion'],
+		[['-C', '--nocue'],	 False,	    'do not copy cue files after conversion'],
+		[['-H', '--nodots'],	 False,	    'do not copy dot/hidden files after conversion'],
+		[['-w', '--overwrite'],	 False,	    'overwrite files in output dir'],
+		[['-d', '--dither'],	 dither,    'dither FLACs to 16/44 before encoding'],
+		[['-m', '--copyother'],	 copyother, 'copy additional files (def: true)'],
+		[['-z', '--zeropad'],	 zeropad,   'zeropad tracknumbers (def: true)'],
+		[['-a', '--artwork'],	 artwork,   'copy embedded cover art (def: true)'],
 	]:
 		p.add_argument(*a[0], **{'default': a[1], 'action': 'store_true', 'help': a[2]})
 	for a in [
-		[['-t', '--tracker'],     tracker,     'URL', 'tracker URL'], 
-		[['-o', '--output'],      output,      'DIR', 'set output dir'],
+		[['-t', '--tracker'],	  tracker,     'URL', 'tracker URL'],
+		[['-o', '--output'],	  output,      'DIR', 'set output dir'],
 		[['-O', '--torrent-dir'], torrent_dir, 'DIR', 'set independent torrent output dir'],
 	]:
 		p.add_argument(*a[0], **{'default': a[1], 'action': 'store', 'metavar': a[2], 'help': a[3]})
@@ -228,7 +235,16 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
 	if opts.zeropad and 'TRACKNUMBER' in tags and len(tags['TRACKNUMBER']) == 1:
 		tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
 	if opts.skipgenre and 'GENRE' in tags: del tags['GENRE']
-
+	artfile = None
+	if artwork:
+		_, artfile = tempfile.mkstemp()
+		r = system("metaflac --export-picture-to='%s' '%s'" % (artfile, escape_quote(f)))
+		if r or not os.path.getsize(artfile):
+			os.unlink(artfile)
+			artfile = None
+		else:
+			if opts.verbose: print ('COVER: %s (%d bytes)' % (artfile, os.path.getsize(artfile)))
+			tags['ARTWORK'] = artfile
 	outname = re.sub(re.escape(flacdir), mp3_dir, f)
 	outname = re.sub(re.compile('\.flac$', re.IGNORECASE), '', outname)
 	with lock:
@@ -259,6 +275,8 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
 	if r:
 		failure(r, "error encoding %s" % outname)
 		system("touch '%s/FAILURE'" % mp3_dir)
+	if artfile is not None:
+		os.unlink(artfile)
 	return 0
 
 class Transcode(threading.Thread):
