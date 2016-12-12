@@ -160,6 +160,8 @@ def make_torrent(opts, target):
                                    os.path.basename(target))),
         escape_quote(target)
     )
+    if opts.additional:
+        torrent_cmd += ' ' + opts.additional
     if opts.nodate:
         torrent_cmd += ' -d'
     if not opts.verbose:
@@ -207,9 +209,10 @@ def setup_parser():
     ]:
         p.add_argument(*a[0], **{'default': a[1], 'action': 'store_true', 'help': a[2]})
     for a in [
-        [['-t', '--tracker'],     tracker,     'URL', 'tracker URL'],
-        [['-o', '--output'],      output,      'DIR', 'set output dir'],
-        [['-O', '--torrent-dir'], torrent_dir, 'DIR', 'set independent torrent output dir'],
+        [['-a', '--additional'],  None,        'ARGS', 'additional arguments to mktorrent'],
+        [['-t', '--tracker'],     tracker,     'URL',  'tracker URL'],
+        [['-o', '--output'],      output,      'DIR',  'set output dir'],
+        [['-O', '--torrent-dir'], torrent_dir, 'DIR',  'set independent torrent output dir'],
     ]:
         p.add_argument(*a[0], **{
             'default': a[1], 'action': 'store',
