@@ -1,3 +1,14 @@
+# 3.8
+- do not append /announce to tracker
+- add -H --nodots option to disable copying of dotfiles after conversion
+- add --a --additional option for passing mktorrent arguments
+- fix race condition when creating output directories
+- fix aacgain file extension
+- change alac extension to .m4a
+- revert os.cpu_count() change, not all python3's have multiprocessing
+- properly escape replaygain commands
+- formatting changes
+
 # 3.7
 - beautify output
 - improve error reporting (`touch dir/FAILURE')
