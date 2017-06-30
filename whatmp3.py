@@ -330,7 +330,8 @@ def main():
 
         for codec in codecs:
             outdir = os.path.basename(flacdir)
-            flacre = re.compile('FLAC', re.IGNORECASE)
+            flacre_str = '(16|24)((-| )*(bit|44|48|96)* *)*FLAC(16|24| )*((16|24)*(-| )*(bit|44|48|96)*)*'
+            flacre = re.compile(flacre_str, re.IGNORECASE)
             if flacre.search(outdir):
                 outdir = flacre.sub(codec, outdir)
             else:
