@@ -32,6 +32,9 @@ dither = 0
 # Specify tracker announce URL
 tracker = None
 
+# Additional arguments to mktorrent
+additional = None
+
 # Max number of threads (e.g., Dual-core = 2, Hyperthreaded Dual-core = 4)
 max_threads = multiprocessing.cpu_count()
 
@@ -209,7 +212,7 @@ def setup_parser():
     ]:
         p.add_argument(*a[0], **{'default': a[1], 'action': 'store_true', 'help': a[2]})
     for a in [
-        [['-a', '--additional'],  None,        'ARGS', 'additional arguments to mktorrent'],
+        [['-a', '--additional'],  additional,  'ARGS', 'additional arguments to mktorrent'],
         [['-t', '--tracker'],     tracker,     'URL',  'tracker URL'],
         [['-o', '--output'],      output,      'DIR',  'set output dir'],
         [['-O', '--torrent-dir'], torrent_dir, 'DIR',  'set independent torrent output dir'],
