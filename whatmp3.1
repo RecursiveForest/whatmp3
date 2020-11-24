@@ -18,7 +18,7 @@ whatmp3 \- transcode audio files and create torrents
 .RB [ \-H ]
 .RB [ \-w ]
 .RB [ \-d ]
-.RB [ \-m ]
+.RB [ \-M ]
 .RB [ \-z ]
 .RB [ \-t
 .IR URL ]
@@ -113,8 +113,8 @@ dithers flacs to 16 bit / 44hz with
 .BR sox
 before transcoding
 .TP
-.BR \-m \fR,\ \fB\-\-copyother
-copies non-audio files to output directories
+.BR \-M \fR,\ \fB\-\-nocopyother
+do not copy non-audio files to output directories
 .TP
 .BR \-z \fR,\ \fB\-\-zeropad
 zeropads tracknumber tags of transcoded files

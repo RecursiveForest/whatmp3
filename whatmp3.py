@@ -20,9 +20,6 @@ output = os.getcwd()
 # Separate torrent output folder (defaults to output):
 torrent_dir = output
 
-# Do you want to copy additional files (.jpg, .log, etc)?
-copyother = 1
-
 # Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
 zeropad = 1
 
@@ -194,21 +191,21 @@ def setup_parser():
         neroAacTag, mp3gain, aacgain, vorbisgain, and sox""")
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     for a in [
-        [['-v', '--verbose'],    False,     'increase verbosity'],
-        [['-n', '--notorrent'],  False,     'do not create a torrent after conversion'],
-        [['-r', '--replaygain'], False,     'add ReplayGain to new files'],
-        [['-c', '--original'],   False,     'create a torrent for the original FLAC'],
-        [['-i', '--ignore'],     False,     'ignore top level directories without flacs'],
-        [['-s', '--silent'],     False,     'do not write to stdout'],
-        [['-S', '--skipgenre'],  False,     'do not insert a genre tag in MP3 files'],
-        [['-D', '--nodate'],     False,     'do not write the creation date to the .torrent file'],
-        [['-L', '--nolog'],      False,     'do not copy log files after conversion'],
-        [['-C', '--nocue'],      False,     'do not copy cue files after conversion'],
-        [['-H', '--nodots'],     False,     'do not copy dot/hidden files after conversion'],
-        [['-w', '--overwrite'],  False,     'overwrite files in output dir'],
-        [['-d', '--dither'],     dither,    'dither FLACs to 16/44 before encoding'],
-        [['-m', '--copyother'],  copyother, 'copy additional files (def: true)'],
-        [['-z', '--zeropad'],    zeropad,   'zeropad tracknumbers (def: true)'],
+        [['-v', '--verbose'],     False,   'increase verbosity'],
+        [['-n', '--notorrent'],   False,   'do not create a torrent after conversion'],
+        [['-r', '--replaygain'],  False,   'add ReplayGain to new files'],
+        [['-c', '--original'],    False,   'create a torrent for the original FLAC'],
+        [['-i', '--ignore'],      False,   'ignore top level directories without flacs'],
+        [['-s', '--silent'],      False,   'do not write to stdout'],
+        [['-S', '--skipgenre'],   False,   'do not insert a genre tag in MP3 files'],
+        [['-D', '--nodate'],      False,   'do not write the creation date to the .torrent file'],
+        [['-L', '--nolog'],       False,   'do not copy log files after conversion'],
+        [['-C', '--nocue'],       False,   'do not copy cue files after conversion'],
+        [['-H', '--nodots'],      False,   'do not copy dot/hidden files after conversion'],
+        [['-w', '--overwrite'],   False,   'overwrite files in output dir'],
+        [['-d', '--dither'],      dither,  'dither FLACs to 16/44 before encoding'],
+        [['-M', '--nocopyother'], False,   'do not copy additional files'],
+        [['-z', '--zeropad'],     zeropad, 'zeropad tracknumbers (def: true)'],
     ]:
         p.add_argument(*a[0], **{'default': a[1], 'action': 'store_true', 'help': a[2]})
     for a in [
@@ -357,7 +354,7 @@ def main():
             for t in threads:
                 t.join()
 
-            if opts.copyother:
+            if not opts.nocopyother:
                 copy_other(opts, flacdir, outdir)
             if opts.replaygain:
                 replaygain(opts, codec, outdir)
