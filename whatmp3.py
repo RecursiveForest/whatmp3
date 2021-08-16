@@ -25,9 +25,6 @@ torrent_dir = output
 # Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
 zeropad = 1
 
-# Do you want to dither FLACs to 16/44 before encoding?
-dither = 0
-
 # Specify tracker announce URL
 tracker = None
 
@@ -205,7 +202,6 @@ def setup_parser():
         [['-C', '--nocue'],       False,   'do not copy cue files after conversion'],
         [['-H', '--nodots'],      False,   'do not copy dot/hidden files after conversion'],
         [['-w', '--overwrite'],   False,   'overwrite files in output dir'],
-        [['-d', '--dither'],      dither,  'dither FLACs to 16/44 before encoding'],
         [['-M', '--nocopyother'], False,   'do not copy additional files'],
         [['-z', '--zeropad'],     zeropad, 'zeropad tracknumbers (def: true)'],
     ]:
@@ -260,7 +256,7 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     for tag in tags:
         tagline = tagline + " " + encoders[enc_opts[codec]['enc']][tag]
     tagline = tagline % tags
-    if opts.dither:
+    if metadata.info.bits_per_sample > 16:
         flac_cmd = dither_cmd + ' | ' + flac_cmd
     flac_cmd = "flac -sdc -- '" + escape_percent(escape_quote(f)) + \
                "' | " + flac_cmd
