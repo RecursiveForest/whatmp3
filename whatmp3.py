@@ -9,6 +9,8 @@ import sys
 import threading
 from fnmatch import fnmatch
 
+import mutagen.flac
+
 VERSION = "3.8"
 
 # DEFAULT CONFIGURATION
@@ -233,13 +235,11 @@ def system(cmd):
 
 def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     tags = {}
+    metadata = mutagen.flac.FLAC(f)
     for tag in copy_tags:
-        tagcmd = "metaflac --show-tag='" + escape_quote(tag) + \
-                 "' '" + escape_quote(f) + "'"
-        t = re.sub('\S.+?=', '', os.popen(tagcmd).read().rstrip(), count=1)
+        t = metadata.get(tag, [None])[0]
         if t:
             tags.update({tag: escape_quote(t)})
-        del t
     if (opts.zeropad and 'TRACKNUMBER' in tags
        and len(tags['TRACKNUMBER']) == 1):
         tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
