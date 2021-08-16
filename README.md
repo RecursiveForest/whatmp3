@@ -7,8 +7,8 @@ a list of formats to transcode to. For each top level directory passed,
 a new directory containing the transcoded audio files and optionally
 a torrent (with `mktorrent`) are created.
 
-whatmp3 requires `flac`, `metaflac`, at least one kind of encoder (eg
-`lame`, `oggenc`).
+whatmp3 requires the `flac` and `python3-mutagen` packages and at least
+one kind of encoder (eg `lame`, `oggenc`).
 
 `mktorrent` and replaygain tools (eg `vorbisgain`) are optionally
 required.

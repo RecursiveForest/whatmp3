@@ -186,8 +186,9 @@ def setup_parser():
     p = argparse.ArgumentParser(
         description="whatmp3 transcodes audio files and creates torrents for them",
         argument_default=False,
-        epilog="""depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc,
-        neroAacTag, mp3gain, aacgain, vorbisgain, and sox""")
+        epilog="""depends on flac, python3-mutagen, and optionally mktorrent,
+        oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, vorbisgain,
+        and sox""")
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     for a in [
         [['-v', '--verbose'],     False,   'increase verbosity'],
