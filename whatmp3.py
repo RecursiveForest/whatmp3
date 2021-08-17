@@ -107,7 +107,7 @@ encoders = {
     }
 }
 
-dither_cmd = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
+dither_cmd = 'sox -t wav - -b 16 -t wav - rate %d dither'
 
 # END CONFIGURATION
 
@@ -258,7 +258,13 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
         tagline = tagline + " " + encoders[enc_opts[codec]['enc']][tag]
     tagline = tagline % tags
     if metadata.info.bits_per_sample > 16:
-        flac_cmd = dither_cmd + ' | ' + flac_cmd
+        ori_rate = metadata.info.sample_rate
+        if ori_rate % 48000 == 0:
+            re_rate = 48000
+        else:
+            re_rate = 44100
+
+        flac_cmd = (dither_cmd % re_rate) + ' | ' + flac_cmd
     flac_cmd = "flac -sdc -- '" + escape_percent(escape_quote(f)) + \
                "' | " + flac_cmd
     flac_cmd = flac_cmd % {
