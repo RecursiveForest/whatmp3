@@ -9,6 +9,8 @@ import sys
 import threading
 from fnmatch import fnmatch
 
+import mutagen.flac
+
 VERSION = "3.8"
 
 # DEFAULT CONFIGURATION
@@ -22,9 +24,6 @@ torrent_dir = output
 
 # Do you want to zeropad tracknumbers? (1 => 01, 2 => 02 ...)
 zeropad = 1
-
-# Do you want to dither FLACs to 16/44 before encoding?
-dither = 0
 
 # Specify tracker announce URL
 tracker = None
@@ -108,7 +107,7 @@ encoders = {
     }
 }
 
-dither_cmd = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
+dither_cmd = 'sox -t wav - -b 16 -t wav - rate %d dither'
 
 # END CONFIGURATION
 
@@ -187,8 +186,9 @@ def setup_parser():
     p = argparse.ArgumentParser(
         description="whatmp3 transcodes audio files and creates torrents for them",
         argument_default=False,
-        epilog="""depends on flac, metaflac, mktorrent, and optionally oggenc, lame, neroAacEnc,
-        neroAacTag, mp3gain, aacgain, vorbisgain, and sox""")
+        epilog="""depends on flac, python3-mutagen, and optionally mktorrent,
+        oggenc, lame, neroAacEnc, neroAacTag, mp3gain, aacgain, vorbisgain,
+        and sox""")
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     for a in [
         [['-v', '--verbose'],     False,   'increase verbosity'],
@@ -203,7 +203,6 @@ def setup_parser():
         [['-C', '--nocue'],       False,   'do not copy cue files after conversion'],
         [['-H', '--nodots'],      False,   'do not copy dot/hidden files after conversion'],
         [['-w', '--overwrite'],   False,   'overwrite files in output dir'],
-        [['-d', '--dither'],      dither,  'dither FLACs to 16/44 before encoding'],
         [['-M', '--nocopyother'], False,   'do not copy additional files'],
         [['-z', '--zeropad'],     zeropad, 'zeropad tracknumbers (def: true)'],
     ]:
@@ -233,13 +232,11 @@ def system(cmd):
 
 def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     tags = {}
+    metadata = mutagen.flac.FLAC(f)
     for tag in copy_tags:
-        tagcmd = "metaflac --show-tag='" + escape_quote(tag) + \
-                 "' '" + escape_quote(f) + "'"
-        t = re.sub('\S.+?=', '', os.popen(tagcmd).read().rstrip(), count=1)
+        t = metadata.get(tag, [None])[0]
         if t:
             tags.update({tag: escape_quote(t)})
-        del t
     if (opts.zeropad and 'TRACKNUMBER' in tags
        and len(tags['TRACKNUMBER']) == 1):
         tags['TRACKNUMBER'] = '0' + tags['TRACKNUMBER']
@@ -260,8 +257,14 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     for tag in tags:
         tagline = tagline + " " + encoders[enc_opts[codec]['enc']][tag]
     tagline = tagline % tags
-    if opts.dither:
-        flac_cmd = dither_cmd + ' | ' + flac_cmd
+    if metadata.info.bits_per_sample > 16:
+        ori_rate = metadata.info.sample_rate
+        if ori_rate % 48000 == 0:
+            re_rate = 48000
+        else:
+            re_rate = 44100
+
+        flac_cmd = (dither_cmd % re_rate) + ' | ' + flac_cmd
     flac_cmd = "flac -sdc -- '" + escape_percent(escape_quote(f)) + \
                "' | " + flac_cmd
     flac_cmd = flac_cmd % {
