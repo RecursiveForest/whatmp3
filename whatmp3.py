@@ -114,7 +114,6 @@ dither_cmd = 'sox -t wav - -b 16 -t wav - rate 44100 dither'
 
 codecs = []
 
-
 def copy_other(opts, flacdir, outdir):
     if opts.verbose:
         print('COPYING other files')
