@@ -236,7 +236,7 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     for tag in copy_tags:
         tagcmd = "metaflac --show-tag='" + escape_quote(tag) + \
                  "' '" + escape_quote(f) + "'"
-        t = re.sub('\S.+?=', '', os.popen(tagcmd).read().rstrip(), count=1)
+        t = re.sub(r'\S.+?=', '', os.popen(tagcmd).read().rstrip(), count=1)
         if t:
             tags.update({tag: escape_quote(t)})
         del t
@@ -246,7 +246,7 @@ def transcode(f, flacdir, mp3_dir, codec, opts, lock):
     if opts.skipgenre and 'GENRE' in tags: del tags['GENRE']
 
     outname = re.sub(re.escape(flacdir), mp3_dir, f)
-    outname = re.sub(re.compile('\.flac$', re.IGNORECASE), '', outname)
+    outname = re.sub(re.compile(r'\.flac$', re.IGNORECASE), '', outname)
     with lock:
         if not os.path.exists(os.path.dirname(outname)):
             os.makedirs(os.path.dirname(outname))
