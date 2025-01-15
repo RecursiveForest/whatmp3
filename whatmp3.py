@@ -47,7 +47,8 @@ enc_opts = {
     'Q8':   {'enc': 'oggenc',     'ext': '.ogg',  'opts': '-q 8 --utf8'},
     'AAC':  {'enc': 'neroAacEnc', 'ext': '.aac',  'opts': '-br 320000'},
     'ALAC': {'enc': 'ffmpeg',     'ext': '.m4a',  'opts': ''},
-    'FLAC': {'enc': 'flac',       'ext': '.flac', 'opts': '--best'}
+    'FLAC': {'enc': 'flac',       'ext': '.flac', 'opts': '--best'},
+    'AIFF': {'enc': 'flac',       'ext': '.aiff', 'opts': '--best'}
 }
 
 encoders = {
