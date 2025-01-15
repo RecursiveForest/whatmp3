@@ -118,7 +118,7 @@ codecs = []
 def copy_other(opts, flacdir, outdir):
     if opts.verbose:
         print('COPYING other files')
-    for dirpath, dirs, files in os.walk(flacdir, topdown=False):
+    for dirpath, dirs, files in os.walk(flacdir, topdown=False, followlinks=opts.followlinks):
         for name in files:
             if opts.nolog and fnmatch(name.lower(), '*.log'):
                 continue
@@ -178,7 +178,7 @@ def replaygain(opts, codec, outdir):
         print(encoders[enc_opts[codec]['enc']]['regain'] % outdir)
     r = system(encoders[enc_opts[codec]['enc']]['regain'] % escape_quote(outdir))
     if r: failure(r, "replaygain")
-    for dirpath, dirs, files in os.walk(outdir, topdown=False):
+    for dirpath, dirs, files in os.walk(outdir, topdown=False, followlinks=opts.followlinks):
         for name in dirs:
             r = system(encoders[enc_opts[codec]['enc']]['regain']
                        % os.path.join(dirpath, name))
@@ -193,6 +193,7 @@ def setup_parser():
     p.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     for a in [
         [['-v', '--verbose'],     False,   'increase verbosity'],
+        [['-f', '--followlinks'], False, 'visit directories pointed to by symlinks, on systems that support them'],
         [['-n', '--notorrent'],   False,   'do not create a torrent after conversion'],
         [['-r', '--replaygain'],  False,   'add ReplayGain to new files'],
         [['-c', '--original'],    False,   'create a torrent for the original FLAC'],
@@ -312,7 +313,7 @@ def main():
         flacfiles = []
         if not os.path.exists(opts.torrent_dir):
             os.makedirs(opts.torrent_dir)
-        for dirpath, dirs, files in os.walk(flacdir, topdown=False):
+        for dirpath, dirs, files in os.walk(flacdir, topdown=False, followlinks=opts.followlinks):
             for name in files:
                 if fnmatch(name.lower(), '*.flac'):
                     flacfiles.append(os.path.join(dirpath, name))

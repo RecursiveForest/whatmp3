@@ -4,6 +4,7 @@ whatmp3 \- transcode audio files and create torrents
 .SH SYNOPSIS
 .B whatmp3
 .RB [ \-v ]
+.RB [ \-f ]
 .RB [ \-h ]
 .RB [ \-\-version ]
 .RB [ \-n ]
@@ -74,6 +75,9 @@ prints version information to standard output, then exits.
 .TP
 .BR \-v \fR,\ \fB\-\-verbose
 prints extra information to screen
+.TP
+.BR \-f \fR,\ \fB\-\-followlinks
+visit directories pointed to by symlinks, on systems that support them
 .TP
 .BR \-n \fR,\ \fB\-\-notorrent
 does not create a torrent even if a tracker announce url is provided
