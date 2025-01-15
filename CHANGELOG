@@ -1,3 +1,8 @@
+# 3.9
+- convert regexes to raw strings (`r''`) to fix SyntaxWarnings
+- support AIFF
+- follow symlinks on supported systems
+
 # 3.8
 - do not append /announce to tracker
 - add -H --nodots option to disable copying of dotfiles after conversion

@@ -1,5 +1,5 @@
 # whatmp3 version
-VERSION = 3.7
+VERSION = 3.9
 
 # Customise below to fit your system
 

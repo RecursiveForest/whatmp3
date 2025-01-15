@@ -9,7 +9,7 @@ import sys
 import threading
 from fnmatch import fnmatch
 
-VERSION = "3.8"
+VERSION = "3.9"
 
 # DEFAULT CONFIGURATION
 
